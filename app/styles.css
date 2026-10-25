@@ -18,9 +18,10 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .island{width:110px;height:32px;border-radius:20px;background:#000;position:absolute;left:50%;top:10px;transform:translateX(-50%)}
 .batt{width:17px;height:11px;border-radius:2px;border:1.5px solid #fff;opacity:.9}
 .home-ind{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:#fff;opacity:.85;z-index:30;pointer-events:none}
-@media (max-width:500px){
-  .stage{padding:0}
-  .device{width:100vw;height:100dvh;border-radius:0;padding:0;box-shadow:none;background:none}
+/* Narrow or short windows (phones, side panels): drop the frame so the dock is always on screen */
+@media (max-width:500px),(max-height:940px){
+  .stage{padding:0;min-height:0}
+  .device{width:100%;max-width:430px;height:100vh;height:100dvh;border-radius:0;padding:0;box-shadow:none;background:none}
   .screen{border-radius:0}
   .statusbar,.home-ind{display:none}
 }
