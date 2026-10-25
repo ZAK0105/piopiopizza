@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0F0F11">
+<title>Pio Pio Pizza</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="stage">
+  <div class="device">
+    <div class="screen" id="screen">
+      <div class="statusbar"><span>9:41</span><div class="island"></div><span class="batt"></span></div>
+
+      <!-- Menu -->
+      <section id="menu" class="view">
+        <div class="scroller" id="menu-scroll">
+          <header class="top">
+            <div class="logo">pio pio<span>.</span></div>
+            <div class="eta-badge"><span class="pulse"></span><span id="eta-text">⚡ Avg. 18 min</span></div>
+          </header>
+          <button class="address" id="address-btn" data-act="open-address"></button>
+          <div class="hero">
+            <h1>Hot pizza.<br>Door in <span class="accent-txt" id="hero-num">20</span>.</h1>
+            <div class="muted">Five pizzas. Stone oven. Pick one, pay, done.</div>
+          </div>
+          <div id="reorder"></div>
+          <div class="chips" id="chips" role="tablist"></div>
+          <div class="list" id="list"></div>
+          <div class="section-title">Add a little extra</div>
+          <div class="extras" id="extras"></div>
+        </div>
+        <div class="dock" id="dock">
+          <div class="toast" id="toast"></div>
+          <button class="cart-line" id="cart-line" data-act="open-cart"></button>
+          <div class="seg" role="tablist">
+            <button role="tab" data-act="mode" data-mode="delivery">🛵 Delivery <span class="soft">(49kr)</span></button>
+            <button role="tab" data-act="mode" data-mode="pickup">🛍️ Pickup</button>
+          </div>
+          <button class="cta" id="cta" data-act="pay"></button>
+        </div>
+      </section>
+
+      <!-- Tracker -->
+      <section id="tracker" class="view" hidden>
+        <div class="scroller tracker-scroll" id="tracker-body"></div>
+      </section>
+
+      <!-- Bottom sheet (pizza detail / cart / address / Vipps) -->
+      <div class="overlay" id="overlay" data-act="close-sheet"></div>
+      <div class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="grab"></div><div id="sheet-body"></div></div>
+
+      <div class="home-ind"></div>
+    </div>
+  </div>
+</div>
+<script src="app.js"></script>
+</body>
+</html>
