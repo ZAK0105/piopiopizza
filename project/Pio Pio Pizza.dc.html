@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<script src="./image-slot.js"></script>
+<style>
+body{margin:0;background:#050506;color:#fff;font-family:'DM Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#FF6B00}a:hover{color:#FFB37A}
+button{font-family:inherit;cursor:pointer}
+@keyframes pp-spin{to{transform:rotate(360deg)}}
+@keyframes pp-pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.7)}}
+</style>
+</helmet>
+<div style="min-height:100vh;display:flex;flex-wrap:wrap;gap:56px;justify-content:center;align-items:flex-start;padding:48px 24px;box-sizing:border-box">
+
+<sc-if value="{{ showSpec }}" hint-placeholder-val="{{ true }}">
+<aside style="width:340px;max-width:100%;display:flex;flex-direction:column;gap:28px;padding-top:8px">
+  <div style="display:flex;flex-direction:column;gap:6px">
+    <div style="font:700 32px/1 Fredoka,sans-serif;letter-spacing:-.5px">Pio Pio <span style="color:#FF6B00">Pizza</span></div>
+    <div style="font-size:14px;line-height:1.5;color:#A1A1AA;text-wrap:pretty">Express ordering PWA. One screen to order, one to wait. Every primary action lives in the bottom third for one-thumb use.</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="font:700 11px/1 'DM Sans';letter-spacing:1.4px;text-transform:uppercase;color:#71717A">Surfaces &amp; accent</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px">
+      <div style="display:flex;flex-direction:column;gap:6px"><div style="height:44px;border-radius:10px;background:#0F0F11;border:1px solid #27272A"></div><div style="font-size:11px;color:#A1A1AA">Pitch<br>#0F0F11</div></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><div style="height:44px;border-radius:10px;background:#18181B;border:1px solid #27272A"></div><div style="font-size:11px;color:#A1A1AA">Charcoal<br>#18181B</div></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><div style="height:44px;border-radius:10px;background:#FF6B00"></div><div style="font-size:11px;color:#A1A1AA">Neon<br>#FF6B00</div></div>
+      <div style="display:flex;flex-direction:column;gap:6px"><div style="height:44px;border-radius:10px;background:#EAB308"></div><div style="font-size:11px;color:#A1A1AA">High-Viz<br>#EAB308</div></div>
+    </div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="font:700 11px/1 'DM Sans';letter-spacing:1.4px;text-transform:uppercase;color:#71717A">Order status</div>
+    <div style="display:flex;flex-wrap:wrap;gap:8px">
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(59,130,246,.14);color:#93C5FD;font-size:12px;font-weight:700"><span style="width:6px;height:6px;border-radius:50%;background:#3B82F6"></span>Received</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(245,158,11,.14);color:#FCD34D;font-size:12px;font-weight:700"><span style="width:6px;height:6px;border-radius:50%;background:#F59E0B"></span>In Oven</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(139,92,246,.16);color:#C4B5FD;font-size:12px;font-weight:700"><span style="width:6px;height:6px;border-radius:50%;background:#8B5CF6"></span>Out for Delivery</span>
+      <span style="display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:rgba(16,185,129,.14);color:#6EE7B7;font-size:12px;font-weight:700"><span style="width:6px;height:6px;border-radius:50%;background:#10B981"></span>Delivered</span>
+    </div>
+    <div style="font-size:12px;line-height:1.5;color:#A1A1AA">Badge text uses the 300-tint of each hue, so labels stay ≥7:1 on charcoal. The saturated hue is reserved for dots and rings.</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="font:700 11px/1 'DM Sans';letter-spacing:1.4px;text-transform:uppercase;color:#71717A">Type</div>
+    <div style="font:700 28px/1 Fredoka,sans-serif">Fredoka 700 · Display</div>
+    <div style="font:500 15px/1.4 'DM Sans'">DM Sans 400–700 · body, prices, UI</div>
+  </div>
+  <div style="display:flex;flex-direction:column;gap:10px">
+    <div style="font:700 11px/1 'DM Sans';letter-spacing:1.4px;text-transform:uppercase;color:#71717A">Contrast (WCAG AAA ≥ 7:1)</div>
+    <div style="display:grid;grid-template-columns:1fr auto;gap:8px 16px;font-size:13px">
+      <span style="color:#A1A1AA">Black on Neon #FF6B00</span><span style="font-weight:700">7.4 : 1</span>
+      <span style="color:#A1A1AA">Black on High-Viz #EAB308</span><span style="font-weight:700">10.9 : 1</span>
+      <span style="color:#A1A1AA">White on Pitch</span><span style="font-weight:700">18.9 : 1</span>
+      <span style="color:#A1A1AA">Zinc-400 on Pitch</span><span style="font-weight:700">7.3 : 1</span>
+    </div>
+    <div style="font-size:12px;line-height:1.5;color:#A1A1AA;text-wrap:pretty">#FF5500 only hits 6.6:1 with black text, so CTA fills were nudged to #FF6B00 to clear AAA. #FF5500 stays for the timer ring and other non-text accents.</div>
+  </div>
+</aside>
+</sc-if>
+
+<div style="width:390px;height:844px;flex:none;border-radius:54px;padding:10px;background:#1C1C1F;box-shadow:0 0 0 1px #2E2E33,0 40px 80px rgba(0,0,0,.6)">
+<div style="position:relative;width:100%;height:100%;border-radius:44px;overflow:hidden;background:#0F0F11">
+  <div style="position:absolute;top:0;left:0;right:0;height:48px;display:flex;align-items:center;justify-content:space-between;padding:0 30px 0 34px;z-index:5;font-weight:700;font-size:15px;pointer-events:none">
+    <span>9:41</span>
+    <div style="width:110px;height:32px;border-radius:20px;background:#000;position:absolute;left:50%;top:10px;transform:translateX(-50%)"></div>
+    <span style="display:flex;gap:6px;align-items:center"><span style="width:17px;height:11px;border-radius:2px;border:1.5px solid #fff;opacity:.9"></span></span>
+  </div>
+
+  <sc-if value="{{ isMenu }}" hint-placeholder-val="{{ true }}">
+  <div style="position:absolute;inset:0;overflow-y:auto;padding:56px 0 196px;box-sizing:border-box;scrollbar-width:none">
+    <header style="display:flex;align-items:center;justify-content:space-between;padding:12px 20px 4px">
+      <div style="font:700 24px/1 Fredoka,sans-serif;letter-spacing:-.3px">pio pio<span style="color:#FF5500">.</span></div>
+      <div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:999px;background:#18181B;border:1px solid #27272A;font-size:13px;font-weight:700">
+        {{ livePulse }}<span>⚡ Avg. 18 min</span>
+      </div>
+    </header>
+    <div style="padding:20px 20px 16px;display:flex;flex-direction:column;gap:6px">
+      <h1 style="margin:0;font:700 34px/1.02 Fredoka,sans-serif;letter-spacing:-.6px;text-wrap:balance">Hot pizza.<br>Door in <span style="color:#FF5500">20</span>.</h1>
+      <div style="font-size:14px;color:#A1A1AA">Five pizzas. Stone oven. Pick one, pay, done.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;padding:0 16px">
+      <sc-for list="{{ items }}" as="item" hint-placeholder-count="5">
+        <article style="display:flex;gap:14px;padding:10px;border-radius:22px;background:#18181B;border:1px solid #232327;align-items:stretch">
+          <div style="width:104px;height:104px;flex:none;border-radius:16px;overflow:hidden;background:repeating-linear-gradient(135deg,#202024 0 8px,#1A1A1D 8px 16px)">
+            <image-slot id="pizza-{{ item.id }}" shape="rounded" radius="16" src="images/{{ item.id }}.png" placeholder="{{ item.name }} photo"></image-slot>
+          </div>
+          <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px;padding:4px 4px 2px 0">
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="font:600 18px/1.15 Fredoka,sans-serif">{{ item.name }}</div>
+              <sc-if value="{{ item.tag }}"><span style="font-size:10px;font-weight:700;letter-spacing:.6px;text-transform:uppercase;padding:3px 6px;border-radius:6px;background:rgba(255,85,0,.16);color:#FFB37A">{{ item.tag }}</span></sc-if>
+            </div>
+            <div style="font-size:13px;line-height:1.35;color:#A1A1AA;text-wrap:pretty">{{ item.ing }}</div>
+            <div style="margin-top:auto;display:flex;align-items:center;justify-content:space-between;gap:8px">
+              <div style="font-weight:700;font-size:16px">{{ item.price }} <span style="font-size:12px;color:#A1A1AA;font-weight:500">kr</span></div>
+              <sc-if value="{{ item.empty }}" hint-placeholder-val="{{ true }}">
+                <button onClick="{{ item.inc }}" aria-label="Add {{ item.name }}" style="height:44px;padding:0 18px;border:0;border-radius:999px;background:#FF6B00;color:#000;font-weight:700;font-size:15px;display:flex;align-items:center;gap:6px" style-active="transform:scale(.95)">Add <span style="font-size:20px;line-height:1">+</span></button>
+              </sc-if>
+              <sc-if value="{{ item.inCart }}">
+                <div style="height:44px;display:flex;align-items:center;border-radius:999px;background:#0F0F11;border:1.5px solid #FF6B00">
+                  <button onClick="{{ item.dec }}" aria-label="Remove one" style="width:44px;height:41px;border:0;background:transparent;color:#fff;font-size:22px;font-weight:700">−</button>
+                  <span style="min-width:18px;text-align:center;font-weight:700;font-size:16px;font-variant-numeric:tabular-nums">{{ item.qty }}</span>
+                  <button onClick="{{ item.inc }}" aria-label="Add one" style="width:44px;height:41px;border:0;background:transparent;color:#FF6B00;font-size:22px;font-weight:700">+</button>
+                </div>
+              </sc-if>
+            </div>
+          </div>
+        </article>
+      </sc-for>
+    </div>
+  </div>
+
+  <div style="position:absolute;left:0;right:0;bottom:0;padding:14px 16px 30px;background:linear-gradient(to top,#0F0F11 78%,rgba(15,15,17,0));display:flex;flex-direction:column;gap:10px;z-index:4">
+    <div style="display:flex;justify-content:space-between;font-size:13px;color:#A1A1AA;padding:0 4px">
+      <span>{{ cartLine }}</span><span>{{ feeLine }}</span>
+    </div>
+    <div role="tablist" style="display:grid;grid-template-columns:1fr 1fr;padding:4px;border-radius:16px;background:#18181B;border:1px solid #27272A">
+      <button role="tab" onClick="{{ setDelivery }}" style="height:44px;border:0;border-radius:12px;font-size:15px;font-weight:700;background:{{ delBg }};color:{{ delFg }}">🛵 Delivery <span style="font-weight:500;opacity:.8">(49kr)</span></button>
+      <button role="tab" onClick="{{ setPickup }}" style="height:44px;border:0;border-radius:12px;font-size:15px;font-weight:700;background:{{ pickBg }};color:{{ pickFg }}">🛍️ Pickup</button>
+    </div>
+    <button onClick="{{ pay }}" disabled="{{ cartEmpty }}" style="height:60px;border:0;border-radius:18px;font-size:17px;font-weight:700;display:flex;align-items:center;justify-content:center;gap:8px;background:{{ ctaBg }};color:{{ ctaFg }};box-shadow:{{ ctaShadow }}" style-active="transform:scale(.98)">{{ ctaLabel }}</button>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ isTracker }}">
+  <div style="position:absolute;inset:0;overflow-y:auto;padding:56px 0 32px;box-sizing:border-box;scrollbar-width:none;display:flex;flex-direction:column">
+    <header style="display:flex;align-items:center;justify-content:space-between;padding:8px 16px 0">
+      <button onClick="{{ backToMenu }}" aria-label="Back to menu" style="width:48px;height:48px;border-radius:50%;border:1px solid #27272A;background:#18181B;color:#fff;font-size:20px">←</button>
+      <div style="text-align:center">
+        <div style="font-size:12px;color:#A1A1AA;font-weight:500">Order</div>
+        <div style="font:600 16px/1.2 Fredoka,sans-serif">#PP-4821</div>
+      </div>
+      <span style="display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;font-size:12px;font-weight:700;background:{{ badgeBg }};color:{{ badgeFg }}"><span style="width:6px;height:6px;border-radius:50%;background:{{ statusColor }}"></span>{{ statusLabel }}</span>
+    </header>
+
+    <div style="display:flex;justify-content:center;padding:20px 0 8px">
+      <div style="position:relative;width:248px;height:248px">
+        <svg width="248" height="248" viewBox="0 0 248 248" style="transform:rotate(-90deg)">
+          <circle cx="124" cy="124" r="110" fill="none" stroke="#1F1F23" stroke-width="14"></circle>
+          <circle cx="124" cy="124" r="110" fill="none" stroke="{{ ringColor }}" stroke-width="14" stroke-linecap="round" stroke-dasharray="691.15" stroke-dashoffset="{{ ringOffset }}" style="transition:stroke-dashoffset .9s linear,stroke .4s"></circle>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px">
+          <div style="font-size:13px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;color:#A1A1AA">{{ ringCaption }}</div>
+          <div style="font:700 64px/1 Fredoka,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:-1px">{{ timeLeft }}</div>
+          <div style="font-size:13px;color:#A1A1AA">{{ etaLine }}</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="margin:12px 16px 0;padding:18px 18px 6px;border-radius:22px;background:#18181B;border:1px solid #232327">
+      <sc-for list="{{ steps }}" as="s" hint-placeholder-count="4">
+        <div style="display:flex;gap:14px;align-items:stretch">
+          <div style="display:flex;flex-direction:column;align-items:center;width:24px">
+            <div style="width:24px;height:24px;flex:none;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;background:{{ s.dotBg }};color:#000;box-shadow:{{ s.glow }};border:2px solid {{ s.dotBorder }};box-sizing:border-box">{{ s.mark }}</div>
+            <sc-if value="{{ s.notLast }}"><div style="flex:1;width:2px;min-height:18px;margin:4px 0;border-radius:2px;background:{{ s.lineBg }}"></div></sc-if>
+          </div>
+          <div style="padding:1px 0 16px;display:flex;flex-direction:column;gap:2px">
+            <div style="font-weight:700;font-size:15px;color:{{ s.titleColor }}">{{ s.label }}</div>
+            <div style="font-size:13px;color:#A1A1AA">{{ s.sub }}</div>
+          </div>
+        </div>
+      </sc-for>
+    </div>
+
+    <sc-if value="{{ isDelivery }}" hint-placeholder-val="{{ true }}">
+    <div style="margin:12px 16px 0;border-radius:22px;background:#18181B;border:1px solid #232327;overflow:hidden">
+      <div style="position:relative;height:128px;background:#131316">
+        <svg width="100%" height="128" viewBox="0 0 358 128" preserveAspectRatio="xMidYMid slice">
+          <g stroke="#1E1E22" stroke-width="10" fill="none">
+            <path d="M0 30H358M0 96H358M60 0V128M150 0V128M250 0V128M320 0V128"></path>
+          </g>
+          <path d="M40 96H150V30H250V70H318" fill="none" stroke="#3F3F46" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" stroke-dasharray="2 8"></path>
+          <circle cx="40" cy="96" r="7" fill="#18181B" stroke="#FF5500" stroke-width="3"></circle>
+          <circle cx="318" cy="70" r="8" fill="#10B981"></circle>
+          <circle cx="{{ dotX }}" cy="{{ dotY }}" r="14" fill="#8B5CF6" opacity=".25" style="transition:cx .9s linear,cy .9s linear"></circle>
+          <circle cx="{{ dotX }}" cy="{{ dotY }}" r="7" fill="#8B5CF6" stroke="#fff" stroke-width="2" style="transition:cx .9s linear,cy .9s linear"></circle>
+        </svg>
+        <div style="position:absolute;left:12px;top:10px;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;background:rgba(15,15,17,.85);color:#A1A1AA">{{ distanceLine }}</div>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;padding:14px">
+        <div style="width:48px;height:48px;flex:none;border-radius:50%;overflow:hidden;background:#27272A">
+          <image-slot id="driver-avatar" shape="circle" placeholder="Driver"></image-slot>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;font-size:16px">Jonas</div>
+          <div style="font-size:13px;color:#A1A1AA">Electric scooter · EL 4821</div>
+        </div>
+        <a href="tel:+4700000000" style="height:48px;padding:0 18px;border-radius:14px;display:flex;align-items:center;gap:6px;font-weight:700;font-size:15px;text-decoration:none;background:{{ callBg }};color:{{ callFg }}">📞 Call</a>
+      </div>
+    </div>
+    </sc-if>
+    <sc-if value="{{ isPickup }}">
+    <div style="margin:12px 16px 0;padding:16px;border-radius:22px;background:#18181B;border:1px solid #232327;display:flex;flex-direction:column;gap:4px">
+      <div style="font-weight:700;font-size:16px">Pick up at Pio Pio Grünerløkka</div>
+      <div style="font-size:13px;color:#A1A1AA">Thorvald Meyers gate 12 · Show order #PP-4821 at the counter</div>
+    </div>
+    </sc-if>
+
+    <div style="margin:12px 16px 0;padding:14px 16px;border-radius:18px;border:1px solid #232327;display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <div style="font-size:13px;color:#A1A1AA;min-width:0">{{ orderSummary }}</div>
+      <div style="font-weight:700;font-size:15px;white-space:nowrap">{{ total }} kr</div>
+    </div>
+    <div style="display:flex;justify-content:center;padding-top:14px">
+      <button onClick="{{ restartDemo }}" style="height:40px;padding:0 14px;border:0;background:transparent;color:#71717A;font-size:12px;font-weight:700;letter-spacing:.4px">↺ Restart timer</button>
+    </div>
+  </div>
+  </sc-if>
+
+  <sc-if value="{{ paying }}">
+  <div style="position:absolute;inset:0;z-index:8;background:rgba(5,5,6,.72);display:flex;align-items:flex-end">
+    <div style="width:100%;padding:28px 24px 44px;border-radius:28px 28px 0 0;background:#18181B;border-top:1px solid #27272A;display:flex;flex-direction:column;align-items:center;gap:14px;box-sizing:border-box">
+      {{ spinner }}
+      <div style="font:600 20px/1.2 Fredoka,sans-serif">Confirm in Vipps</div>
+      <div style="font-size:14px;color:#A1A1AA;text-align:center">{{ total }} NOK · {{ modeLabel }}</div>
+    </div>
+  </div>
+  </sc-if>
+
+  <div style="position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:#fff;opacity:.85;z-index:9;pointer-events:none"></div>
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;ctaColor&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Neon Orange&quot;,&quot;High-Viz Yellow&quot;],&quot;default&quot;:&quot;Neon Orange&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;demoSpeed&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;Real time&quot;,&quot;10×&quot;,&quot;60×&quot;],&quot;default&quot;:&quot;60×&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;showSpec&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;}}">
+const MENU=[
+ {id:'margherita',name:'Margherita',ing:'San Marzano, fior di latte, basil',price:149},
+ {id:'piopio',name:'Pio Pio',ing:'Peri-peri chicken, red onion, chili honey',price:189,tag:'Hot'},
+ {id:'pepperoni',name:'Pepperoni',ing:'Double pepperoni, mozzarella, oregano',price:179},
+ {id:'funghi',name:'Funghi',ing:'Mushrooms, garlic cream, thyme, parmesan',price:179},
+ {id:'diavola',name:'Diavola',ing:'Spicy salami, nduja, jalapeño',price:189}];
+const TOTAL=1200;
+const STEPS=[
+ {label:'Received',sub:'Kitchen has your order',color:'#3B82F6',tint:'rgba(59,130,246,.14)',fg:'#93C5FD',at:0},
+ {label:'In Oven',sub:'Stone oven · 90 seconds at 450°C',color:'#F59E0B',tint:'rgba(245,158,11,.14)',fg:'#FCD34D',at:90},
+ {label:'Out for Delivery',sub:'Jonas is on the way',color:'#8B5CF6',tint:'rgba(139,92,246,.16)',fg:'#C4B5FD',at:600},
+ {label:'Arrived',sub:'Enjoy it hot',color:'#10B981',tint:'rgba(16,185,129,.14)',fg:'#6EE7B7',at:1200}];
+const ROUTE=[[40,96],[150,96],[150,30],[250,30],[250,70],[318,70]];
+const KEY='piopio-proto-v1';
+function along(f){let segs=[],L=0;for(let i=1;i<ROUTE.length;i++){const[a,b]=[ROUTE[i-1],ROUTE[i]];const l=Math.hypot(b[0]-a[0],b[1]-a[1]);segs.push([a,b,l]);L+=l}let d=f*L;for(const[a,b,l]of segs){if(d<=l){const t=l?d/l:0;return[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]}d-=l}return ROUTE[ROUTE.length-1]}
+class Component extends DCLogic{
+ constructor(p){super(p);let s={};try{s=JSON.parse(localStorage.getItem(KEY))||{}}catch(e){}
+  this.state={cart:s.cart||{piopio:1},mode:s.mode||'delivery',screen:s.screen||'menu',start:s.start||0,virt:s.virt||0,paying:false,now:Date.now()}}
+ componentDidMount(){this.last=Date.now();this.t=setInterval(()=>{const n=Date.now(),dt=(n-this.last)/1000;this.last=n;
+  if(this.state.screen==='tracker')this.setState(s=>({virt:Math.min(TOTAL,s.virt+dt*this.speed())}),this.save);},1000)}
+ componentWillUnmount(){clearInterval(this.t);clearTimeout(this.pt)}
+ speed(){const v=this.props.demoSpeed??'60×';return v==='Real time'?1:v==='10×'?10:60}
+ save=()=>{const{cart,mode,screen,virt}=this.state;try{localStorage.setItem(KEY,JSON.stringify({cart,mode,screen,virt}))}catch(e){}}
+ set(o){this.setState(o,this.save)}
+ bump(id,d){this.setState(s=>{const c={...s.cart};c[id]=Math.max(0,(c[id]||0)+d);if(!c[id])delete c[id];return{cart:c}},this.save)}
+ renderVals(){
+  const{cart,mode,screen,virt,paying}=this.state;
+  const yellow=(this.props.ctaColor??'Neon Orange')==='High-Viz Yellow';
+  const accent=yellow?'#EAB308':'#FF6B00';
+  const count=Object.values(cart).reduce((a,b)=>a+b,0);
+  const sub=MENU.reduce((a,m)=>a+(cart[m.id]||0)*m.price,0);
+  const fee=mode==='delivery'&&count?49:0;const total=sub+fee;
+  const empty=count===0;
+  const stage=STEPS.reduce((a,s,i)=>virt>=s.at?i:a,0);
+  const st=STEPS[stage];const left=Math.max(0,TOTAL-virt);
+  const mm=Math.floor(left/60),ss=Math.floor(left%60);
+  const outF=stage<2?0:Math.min(1,(virt-600)/600);const[dx,dy]=along(outF);
+  const km=(2.4*(1-outF)).toFixed(1);
+  const done=stage===3;
+  return{
+   showSpec:this.props.showSpec??true,
+   isMenu:screen==='menu',isTracker:screen==='tracker',paying,
+   livePulse:React.createElement('span',{style:{width:8,height:8,borderRadius:'50%',background:'#10B981',animation:'pp-pulse 1.6s ease-in-out infinite',display:'inline-block'}}),
+   spinner:React.createElement('div',{style:{width:44,height:44,borderRadius:'50%',border:'4px solid #27272A',borderTopColor:accent,animation:'pp-spin .8s linear infinite'}}),
+   items:MENU.map(m=>({...m,qty:cart[m.id]||0,empty:!cart[m.id],inCart:!!cart[m.id],inc:()=>this.bump(m.id,1),dec:()=>this.bump(m.id,-1)})),
+   cartLine:empty?'Your bag is empty':`${count} pizza${count>1?'s':''} · ${sub} kr`,
+   feeLine:mode==='delivery'?(empty?'Delivery 49 kr':'+ 49 kr delivery'):'Ready in ~12 min',
+   delBg:mode==='delivery'?'#2A2A2F':'transparent',delFg:mode==='delivery'?'#fff':'#A1A1AA',
+   pickBg:mode==='pickup'?'#2A2A2F':'transparent',pickFg:mode==='pickup'?'#fff':'#A1A1AA',
+   setDelivery:()=>this.set({mode:'delivery'}),setPickup:()=>this.set({mode:'pickup'}),
+   cartEmpty:empty,
+   ctaBg:empty?'#27272A':accent,ctaFg:empty?'#A1A1AA':'#000',
+   ctaShadow:empty?'none':(yellow?'0 10px 30px rgba(234,179,8,.3)':'0 10px 30px rgba(255,85,0,.35)'),
+   ctaLabel:empty?'Add a pizza to order':`⚡ Pay with Vipps • ${total} NOK`,
+   pay:()=>{if(empty)return;this.setState({paying:true});this.pt=setTimeout(()=>{this.last=Date.now();this.set({paying:false,screen:'tracker',virt:0})},1400)},
+   total,modeLabel:mode==='delivery'?'Delivery':'Pickup',
+   backToMenu:()=>this.set({screen:'menu'}),restartDemo:()=>{this.last=Date.now();this.set({virt:0})},
+   statusLabel:mode==='pickup'&&stage===2?'Ready':st.label,statusColor:st.color,badgeBg:st.tint,badgeFg:st.fg,
+   ringColor:done?'#10B981':'#FF5500',ringOffset:(691.15*(1-left/TOTAL)).toFixed(2),
+   ringCaption:done?'Arrived':(mode==='pickup'?'Ready in':'Arriving in'),
+   timeLeft:`${mm}:${String(ss).padStart(2,'0')}`,
+   etaLine:done?'Enjoy!':`Speed: ${this.speed()===1?'live':this.speed()+'× demo'}`,
+   steps:STEPS.map((s,i)=>{const past=i<stage,cur=i===stage,lbl=mode==='pickup'?['Received','In Oven','Ready for Pickup','Picked Up'][i]:s.label;
+    const subTxt=mode==='pickup'&&i===2?'Head to the counter':mode==='pickup'&&i===3?'See you next time':s.sub;
+    return{label:lbl,sub:subTxt,mark:past||(cur&&done)?'✓':'',notLast:i<3,
+     dotBg:past||cur?s.color:'transparent',dotBorder:past||cur?s.color:'#3F3F46',
+     glow:cur&&!done?`0 0 0 5px ${s.tint}`:'none',lineBg:past?STEPS[i+1].color:'#27272A',
+     titleColor:past||cur?'#fff':'#71717A'}}),
+   isDelivery:mode==='delivery',isPickup:mode==='pickup',
+   dotX:dx.toFixed(1),dotY:dy.toFixed(1),
+   distanceLine:stage<2?'Waiting at the kitchen':done?'Delivered':`${km} km away`,
+   callBg:stage===2?accent:'#27272A',callFg:stage===2?'#000':'#fff',
+   orderSummary:MENU.filter(m=>cart[m.id]).map(m=>`${cart[m.id]}× ${m.name}`).join(', ')||'—'
+  }}
+}
+</script>
+</body>
+</html>
