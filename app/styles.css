@@ -24,6 +24,13 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
   .device{width:100%;max-width:430px;height:100vh;height:100dvh;border-radius:0;padding:0;box-shadow:none;background:none}
   .screen{border-radius:0}
   .statusbar,.home-ind{display:none}
+  /* Normal page flow + sticky dock: works even when the host sizes the frame to its content */
+  .device,.screen{height:auto;min-height:100vh;overflow:visible;margin:0 auto}
+  .view{position:relative;inset:auto}
+  .scroller{position:static;overflow:visible;padding:8px 0 16px}
+  .dock{position:sticky;bottom:0}
+  .overlay,.sheet{position:fixed}
+  .sheet{max-width:430px;margin:0 auto}
 }
 
 .view{position:absolute;inset:0}
@@ -131,7 +138,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .opt:disabled{opacity:.4;cursor:default}
 .tops{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .tops .opt{flex-direction:row;justify-content:space-between;padding:0 12px;min-height:48px}
-.sheet-foot{display:flex;gap:10px;margin-top:22px;align-items:center}
+.sheet-foot{display:flex;gap:10px;margin-top:22px;align-items:center;position:sticky;bottom:-36px;padding:12px 0 36px;margin-bottom:-36px;background:var(--charcoal)}
 .sheet-foot .stepper{flex:none}
 .sheet-foot .cta{flex:1}
 .row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
