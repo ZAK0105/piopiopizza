@@ -123,7 +123,7 @@ function renderMenu(){
  $('cart-line').disabled=empty;bagBump=false;
  const seg=document.querySelector('.seg');seg.classList.toggle('pickup',S.mode==='pickup');
  seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',b.dataset.mode===S.mode));
- $('cta').disabled=empty;
+ $('cta').disabled=empty;$('card-btn').disabled=empty;
  $('cta').textContent=empty?'Add a pizza to order':`⚡ Pay with Vipps • ${t.total} NOK`;
  renderToast();
 }
@@ -159,15 +159,65 @@ function renderSheet(){
     ${EXTRAS.filter(e=>S.extras[e.id]).map(e=>`<div class="row"><div class="thumb">${e.em}</div><div class="info"><b>${e.name}</b><span>${e.price} kr</span></div>
      <div class="stepper"><button data-act="cart-extra" data-id="${e.id}" data-d="-1" aria-label="Fewer">−</button><span>${S.extras[e.id]}</span><button class="plus" data-act="cart-extra" data-id="${e.id}" data-d="1" aria-label="More">+</button></div></div>`).join('')}</div>
    <div class="totals"><span>Subtotal</span><b>${t.sub} kr</b>${t.fee?`<span>Delivery</span><b>${t.fee} kr</b>`:''}<span>Total</span><b>${t.total} kr</b></div>
-   <div class="sheet-foot"><button class="cta" data-act="pay">⚡ Pay with Vipps • ${t.total} NOK</button></div>`;
+   <div class="sheet-foot"><button class="cta" data-act="pay">⚡ Pay with Vipps • ${t.total} NOK</button>
+    <button class="card-btn" data-act="open-card" aria-label="Pay with debit or credit card"><span>💳</span>Card</button></div>`;
  }else if(sh.type==='address'){
   body.innerHTML=`<h2 class="sh-title">Deliver to</h2><div class="sh-sub">ETA updates with distance from the oven.</div><div style="margin-top:16px">
    ${ADDRESSES.map(a=>`<button class="addr" aria-pressed="${S.addr===a.id}" data-act="pick-addr" data-id="${a.id}"><span style="font-size:22px">${a.icon}</span>
     <span class="info"><b>${a.name}</b><span>${esc(a.line)}</span></span><span class="eta">${a.eta} min</span></button>`).join('')}</div>`;
+ }else if(sh.type==='card'){
+  // Inputs are not re-rendered while typing; values live in sh and are synced by the input handler
+  if(!$('cc-num'))body.innerHTML=`<h2 class="sh-title">Pay with card</h2><div class="sh-sub">Debit or credit · Visa, Mastercard, Amex</div>
+   <div class="field" id="f-num"><label for="cc-num">Card number</label>
+    <input id="cc-num" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456" maxlength="23"><span class="brand" id="cc-brand"></span></div>
+   <div class="field-row">
+    <div class="field" id="f-exp"><label for="cc-exp">Expiry</label><input id="cc-exp" inputmode="numeric" autocomplete="cc-exp" placeholder="MM/YY" maxlength="5"></div>
+    <div class="field" id="f-cvc"><label for="cc-cvc">CVC</label><input id="cc-cvc" inputmode="numeric" autocomplete="cc-csc" placeholder="123" maxlength="4"></div></div>
+   <div class="cc-err" id="cc-err" role="alert"></div>
+   <div class="sheet-foot"><button class="cta" id="cc-pay" data-act="pay-card"></button></div>
+   <div class="cc-note">🔒 Demo only — no card is charged or stored.</div>`;
+  $('cc-num').value=sh.num;$('cc-exp').value=sh.exp;$('cc-cvc').value=sh.cvc;syncCard();
  }else if(sh.type==='pay'){
-  body.innerHTML=`<div class="vipps"><div class="spinner"></div><div class="sh-title" style="font-size:20px">Confirm in Vipps</div>
-   <div class="sh-sub">${totals().total} NOK · ${S.mode==='delivery'?'Delivery':'Pickup'}</div></div>`;
+  body.innerHTML=`<div class="vipps"><div class="spinner"></div><div class="sh-title" style="font-size:20px">${sh.method==='card'?'Processing payment…':'Confirm in Vipps'}</div>
+   <div class="sh-sub">${sh.method==='card'?esc(sh.label)+' · ':''}${totals().total} NOK · ${S.mode==='delivery'?'Delivery':'Pickup'}</div></div>`;
  }
+}
+
+// ---------- card form ----------
+const digits=s=>s.replace(/\D/g,'');
+const cardBrand=n=>/^4/.test(n)?'Visa':/^(5[1-5]|2[2-7])/.test(n)?'Mastercard':/^3[47]/.test(n)?'Amex':'';
+const luhn=n=>{let s=0;for(let i=n.length-1,d=false;i>=0;i--,d=!d){let x=+n[i];if(d&&(x*=2)>9)x-=9;s+=x}return n.length>0&&s%10===0};
+function cardCheck(sh){
+ const n=digits(sh.num),amex=cardBrand(n)==='Amex',len=amex?15:16,cv=amex?4:3;
+ const numDone=n.length>=len,numOk=numDone&&luhn(n);
+ const m=/^(\d\d)\/(\d\d)$/.exec(sh.exp),now=new Date();
+ const expOk=!!m&&+m[1]>=1&&+m[1]<=12&&(2000+ +m[2])*12+ +m[1]>now.getFullYear()*12+now.getMonth();
+ const cvcOk=sh.cvc.length===cv;
+ const err=numDone&&!numOk?'Check the card number.':m&&!expOk?'This card has expired or the date is wrong.':'';
+ return{ok:numOk&&expOk&&cvcOk,err,badNum:numDone&&!numOk,badExp:!!m&&!expOk,brand:cardBrand(n),last4:n.slice(-4)};
+}
+function syncCard(){
+ const sh=S.sheet,c=cardCheck(sh);
+ $('cc-brand').textContent=c.brand;$('cc-err').textContent=c.err;
+ $('f-num').classList.toggle('bad',c.badNum);$('f-exp').classList.toggle('bad',c.badExp);
+ $('cc-pay').disabled=!c.ok;$('cc-pay').textContent=`Pay ${totals().total} NOK`;
+}
+document.addEventListener('input',e=>{
+ const sh=S.sheet,el=e.target;if(!sh||sh.type!=='card')return;
+ if(el.id==='cc-num'){const n=digits(el.value).slice(0,cardBrand(digits(el.value))==='Amex'?15:16);
+  el.value=sh.num=cardBrand(n)==='Amex'?[n.slice(0,4),n.slice(4,10),n.slice(10)].filter(Boolean).join(' '):n.replace(/(.{4})(?=.)/g,'$1 ')}
+ else if(el.id==='cc-exp'){let d=digits(el.value).slice(0,4);if(d.length===1&&d>'1')d='0'+d;
+  // keep the slash while typing forward, let it go when deleting
+  el.value=sh.exp=d.length>2||(d.length===2&&e.inputType!=='deleteContentBackward')?d.slice(0,2)+'/'+d.slice(2):d}
+ else if(el.id==='cc-cvc')el.value=sh.cvc=digits(el.value).slice(0,4);
+ else return;
+ syncCard();
+});
+function startPay(method,label){
+ if(!totals().items)return;S.sheet={type:'pay',method,label};
+ setTimeout(()=>{const t=totals();S.order={lines:S.lines.map(l=>({...l})),extras:{...S.extras},total:t.total};
+  S.last={lines:S.order.lines,extras:S.order.extras};S.sheet=null;S.screen='tracker';S.virt=0;lastTick=Date.now();render()},1400);
+
 }
 
 // ---------- render: tracker ----------
@@ -234,9 +284,9 @@ const actions={
  line:d=>{const l=S.lines[d.i];l.qty+=Number(d.d);if(l.qty<=0)S.lines.splice(d.i,1)},
  'cart-extra':d=>bumpExtra(d.id,Number(d.d)),
  'pick-addr':d=>{S.addr=d.id;S.sheet=null;heroTick()},
- pay:()=>{if(!totals().items)return;S.sheet={type:'pay'};
-  setTimeout(()=>{const t=totals();S.order={lines:S.lines.map(l=>({...l})),extras:{...S.extras},total:t.total};
-   S.last={lines:S.order.lines,extras:S.order.extras};S.sheet=null;S.screen='tracker';S.virt=0;lastTick=Date.now();render()},1400)},
+ pay:()=>startPay('vipps'),
+ 'open-card':()=>{if(totals().items)S.sheet={type:'card',num:'',exp:'',cvc:''}},
+ 'pay-card':()=>{const c=cardCheck(S.sheet);if(c.ok)startPay('card',`${c.brand||'Card'} •••• ${c.last4}`)},
  back:()=>{S.screen='menu'},
  restart:()=>{S.virt=0;lastTick=Date.now()}};
 
@@ -245,7 +295,8 @@ document.addEventListener('click',e=>{
  const fn=actions[el.dataset.act];if(!fn)return;
  fn(el.dataset,el);render();
 });
-document.addEventListener('keydown',e=>{if(e.key==='Escape'&&S.sheet&&S.sheet.type!=='pay'){S.sheet=null;render()}});
+document.addEventListener('keydown',e=>{if(e.key==='Enter'&&S.sheet?.type==='card'&&e.target.tagName==='INPUT'){actions['pay-card']();render();return}
+ if(e.key==='Escape'&&S.sheet&&S.sheet.type!=='pay'){S.sheet=null;render()}});
 
 function heroTick(){const n=$('hero-num');n.classList.remove('tick');void n.offsetWidth;n.classList.add('tick')}
 

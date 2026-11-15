@@ -141,6 +141,24 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .sheet-foot{display:flex;gap:10px;margin-top:22px;align-items:center;position:sticky;bottom:-36px;padding:12px 0 36px;margin-bottom:-36px;background:var(--charcoal)}
 .sheet-foot .stepper{flex:none}
 .sheet-foot .cta{flex:1}
+/* Card payment */
+.pay-row{display:flex;gap:10px}
+.pay-row .cta{flex:1;min-width:0}
+.card-btn{width:68px;height:60px;flex:none;border-radius:18px;border:1.5px solid #3F3F46;background:var(--charcoal);font-size:12px;font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;transition:transform .1s,border-color .2s}
+.card-btn span{font-size:20px;line-height:1}
+.card-btn:active{transform:scale(.95)}
+.card-btn:disabled{opacity:.45;cursor:default}
+.field{display:flex;flex-direction:column;gap:6px;margin-top:14px;position:relative}
+.field label{font-size:12px;font-weight:700;color:var(--muted)}
+.field input{height:52px;padding:0 14px;border-radius:14px;border:1.5px solid var(--line2);background:var(--pitch);color:#fff;font:500 16px/1 'DM Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums;letter-spacing:.5px;width:100%;outline:none;transition:border-color .15s}
+.field input::placeholder{color:#52525B}
+.field input:focus{border-color:var(--accent)}
+.field.bad input{border-color:#EF4444}
+.field .brand{position:absolute;right:12px;bottom:15px;font-size:12px;font-weight:700;padding:3px 8px;border-radius:6px;background:var(--raised);color:#fff}
+.field .brand:empty{display:none}
+.field-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.cc-err{min-height:18px;margin-top:10px;font-size:13px;color:#FCA5A5}
+.cc-note{margin-top:12px;font-size:12px;color:var(--dim);text-align:center}
 .row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
 .row:last-child{border-bottom:0}
 .row .thumb{width:48px;height:48px;flex:none;border-radius:12px;overflow:hidden;background:var(--pitch);display:flex;align-items:center;justify-content:center;font-size:24px}
