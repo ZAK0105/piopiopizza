@@ -12,8 +12,29 @@ const SIZES=[{id:'S',label:'Small',cm:30,add:-20},{id:'M',label:'Medium',cm:33,a
 const TOPPINGS=[{id:'cheese',name:'Extra cheese'},{id:'jalapeno',name:'Jalapeño'},{id:'nduja',name:'Nduja'},
  {id:'mushroom',name:'Mushrooms'},{id:'onion',name:'Red onion'},{id:'honey',name:'Chili honey'}];
 const TOP_PRICE=25,MAX_TOPS=3;
-const EXTRAS=[{id:'coke',name:'Coca-Cola 0.5L',em:'🥤',price:39},{id:'garlic',name:'Garlic dip',em:'🧄',price:25},
- {id:'chili',name:'Chili honey',em:'🍯',price:25},{id:'tiramisu',name:'Tiramisu',em:'🍰',price:69}];
+const SIDES=[{id:'garlicbread',name:'Garlic bread',em:'🥖',price:59},{id:'cheesebread',name:'Cheesy garlic bread',em:'🧀',price:69},
+ {id:'fries',name:'Fries',em:'🍟',price:49},{id:'sweetfries',name:'Sweet potato fries',em:'🍠',price:59},
+ {id:'wings',name:'Chicken wings ×6',em:'🍗',price:89},{id:'mozzsticks',name:'Mozzarella sticks ×5',em:'🫕',price:79},
+ {id:'onionrings',name:'Onion rings',em:'🧅',price:55},{id:'salad',name:'Side salad',em:'🥗',price:59}];
+const DIPS=[{id:'garlic',name:'Garlic dip',em:'🧄',price:25},{id:'chili',name:'Chili honey',em:'🍯',price:25},
+ {id:'aioli',name:'Aioli',em:'🥣',price:25},{id:'bbq',name:'BBQ dip',em:'🔥',price:25},{id:'sriracha',name:'Sriracha mayo',em:'🌶️',price:25}];
+const DESSERTS=[{id:'tiramisu',name:'Tiramisu',em:'🍰',price:69},{id:'fondant',name:'Chocolate fondant',em:'🍫',price:69},
+ {id:'icecream',name:'Vanilla ice cream',em:'🍨',price:59}];
+// Each brand is sold as 0.5 L and 1.5 L; c = bottle colour, l = label colour
+const BRANDS=[{id:'coke',name:'Coca-Cola',c:'#E61A27'},{id:'cokezero',name:'Coca-Cola Zero',c:'#161616',l:'#E61A27'},
+ {id:'pepsi',name:'Pepsi',c:'#0B4EA2'},{id:'pepsimax',name:'Pepsi Max',c:'#0A0A0A',l:'#1F8BFF'},
+ {id:'fanta',name:'Fanta',c:'#FF8300'},{id:'fantaex',name:'Fanta Exotic',c:'#F0437A',l:'#FFD23F'},
+ {id:'sprite',name:'Sprite',c:'#0A9E4A'},{id:'7up',name:'7UP',c:'#12A150',l:'#E4002B'},
+ {id:'solo',name:'Solo',c:'#F7A600',l:'#D2232A'},{id:'solosuper',name:'Solo Super',c:'#F7A600',l:'#1A1A1A'},
+ {id:'urge',name:'Urge',c:'#3F9C35',l:'#D7E44A'},{id:'mozell',name:'Mozell',c:'#C9D46C',l:'#1E5B2E'},
+ {id:'villa',name:'Villa Farris',c:'#6B1F3A',l:'#F1E5C8'},{id:'mdew',name:'Mountain Dew',c:'#8CC63F',l:'#D2232A'},
+ {id:'farris',name:'Farris',c:'#0E4C92',l:'#C9E4F7',water:true},{id:'bonaqua',name:'Bonaqua',c:'#1C75BC',l:'#E6F4FB',water:true},
+ {id:'imsdal',name:'Imsdal',c:'#7CCBEA',l:'#0E4C92',water:true}];
+const BOTTLES=[{id:'05',label:'0.5 L',price:39,water:35},{id:'15',label:'1.5 L',price:59,water:49}];
+const bottle=(b,z)=>`<span class="bottle${z==='15'?' big':''}" style="--c:${b.c}${b.l?`;--l:${b.l}`:''}"></span>`;
+const DRINKS=BRANDS.flatMap(b=>BOTTLES.map(z=>({id:`${b.id}-${z.id}`,brand:b.id,size:z.id,name:`${b.name} ${z.label}`,short:b.name,
+ price:b.water?z.water:z.price,icon:bottle(b,z.id)})));
+const EXTRAS=[...SIDES,...DIPS,...DRINKS,...DESSERTS];
 const ADDRESSES=[{id:'home',icon:'🏠',name:'Home',line:'Thorvald Meyers gate 12',eta:17},
  {id:'work',icon:'💼',name:'Work',line:'Karl Johans gate 25',eta:21},
  {id:'gym',icon:'🏋️',name:'Gym',line:'Markveien 35',eta:14}];
@@ -24,7 +45,7 @@ const STEPS=[
  {label:'Out for Delivery',sub:'Jonas is on the way',color:'#8B5CF6',tint:'rgba(139,92,246,.16)',fg:'#C4B5FD',at:600},
  {label:'Arrived',sub:'Enjoy it hot',color:'#10B981',tint:'rgba(16,185,129,.14)',fg:'#6EE7B7',at:1200}];
 const ROUTE=[[40,96],[150,96],[150,30],[250,30],[250,70],[318,70]];
-const KEY='piopio-app-v1';
+const KEY='piopio-app-v2';
 const SPEED=Number(new URLSearchParams(location.search).get('speed'))||60; // demo: ?speed=1 for real time
 
 const $=id=>document.getElementById(id);
@@ -40,10 +61,12 @@ const S={
  addr:saved.addr||'home',
  screen:saved.screen||'menu',
  virt:saved.virt||0,
- last:saved.last||{lines:[{id:'pepperoni',size:'L',tops:[],qty:2}],extras:{coke:2}}, // seeded "last order"
+ last:saved.last||{lines:[{id:'pepperoni',size:'L',tops:[],qty:2}],extras:{'coke-15':1,garlic:2}}, // seeded "last order"
  filter:'all',
+ drinkSize:'05',
  sheet:null, // {type:'pizza',id,size,tops,qty} | {type:'cart'} | {type:'address'} | {type:'pay'}
  toast:null};
+for(const o of[S,S.last])for(const id of Object.keys(o.extras))if(!byId(EXTRAS,id))delete o.extras[id];
 const save=()=>{const{lines,extras,mode,addr,screen,virt,last}=S;try{localStorage.setItem(KEY,JSON.stringify({lines,extras,mode,addr,screen,virt,last}))}catch(e){}};
 
 const unitPrice=l=>byId(MENU,l.id).price+byId(SIZES,l.size).add+l.tops.length*TOP_PRICE;
@@ -112,10 +135,19 @@ function renderMenu(){
        :`<button class="add" data-act="inc" data-id="${m.id}" aria-label="Add ${m.name}">Add <span>+</span></button>`}
     </div></div></article>`}).join(''):`<div class="empty-filter">Nothing here yet.</div>`;
 
- $('extras').innerHTML=EXTRAS.map(e=>{const q=S.extras[e.id]||0;
+ const card=e=>{const q=S.extras[e.id]||0;
   return `<button class="extra${q?' has':''}" data-act="extra" data-id="${e.id}" aria-label="Add ${e.name}">
-   <span class="em">${e.em}</span><span class="n">${e.name}</span><span class="p">${e.price} kr</span>
-   <span class="pill">${q?`${q} in bag · +`:'Add +'}</span></button>`}).join('');
+   <span class="em">${e.icon||e.em}</span><span class="n">${e.short||e.name}</span><span class="p">${e.size?byId(BOTTLES,e.size).label+' · ':''}${e.price} kr</span>
+   <span class="pill">${q?`${q} in bag · +`:'Add +'}</span></button>`};
+ const row=(key,title,items,right='',two=false)=>`<div class="section-title"><span>${title}</span>${right}</div>
+  <div class="extras${two?' two':''}" data-row="${key}">${items.map(card).join('')}</div>`;
+ const sizeSeg=`<span class="size-seg" role="group" aria-label="Bottle size">${BOTTLES.map(z=>
+  `<button data-act="drink-size" data-id="${z.id}" aria-pressed="${S.drinkSize===z.id}">${z.label}</button>`).join('')}</span>`;
+ // keep each row's horizontal scroll position across re-renders
+ const ex=$('extras'),pos={};ex.querySelectorAll('[data-row]').forEach(r=>{pos[r.dataset.row]=r.scrollLeft});
+ ex.innerHTML=row('sides','Sides',SIDES)+row('dips','Dips',DIPS)
+  +row('drinks','Drinks',DRINKS.filter(d=>d.size===S.drinkSize),sizeSeg,true)+row('desserts','Something sweet',DESSERTS);
+ ex.querySelectorAll('[data-row]').forEach(r=>{r.scrollLeft=pos[r.dataset.row]||0});
 
  const empty=!t.items;
  $('cart-line').innerHTML=empty?`<span>Your bag is empty</span><span>${S.mode==='delivery'?'Delivery 49 kr':'Ready in ~12 min'}</span>`
@@ -156,7 +188,7 @@ function renderSheet(){
    <div style="margin-top:8px">${S.lines.map((l,i)=>`<div class="row"><div class="thumb"><img src="images/${l.id}.png" alt=""></div>
      <div class="info"><b>${byId(MENU,l.id).name}</b><span>${esc(lineDesc(l))} · ${unitPrice(l)} kr</span></div>
      <div class="stepper"><button data-act="line" data-i="${i}" data-d="-1" aria-label="Fewer">−</button><span>${l.qty}</span><button class="plus" data-act="line" data-i="${i}" data-d="1" aria-label="More">+</button></div></div>`).join('')}
-    ${EXTRAS.filter(e=>S.extras[e.id]).map(e=>`<div class="row"><div class="thumb">${e.em}</div><div class="info"><b>${e.name}</b><span>${e.price} kr</span></div>
+    ${EXTRAS.filter(e=>S.extras[e.id]).map(e=>`<div class="row"><div class="thumb">${e.icon||e.em}</div><div class="info"><b>${e.name}</b><span>${e.price} kr</span></div>
      <div class="stepper"><button data-act="cart-extra" data-id="${e.id}" data-d="-1" aria-label="Fewer">−</button><span>${S.extras[e.id]}</span><button class="plus" data-act="cart-extra" data-id="${e.id}" data-d="1" aria-label="More">+</button></div></div>`).join('')}</div>
    <div class="totals"><span>Subtotal</span><b>${t.sub} kr</b>${t.fee?`<span>Delivery</span><b>${t.fee} kr</b>`:''}<span>Total</span><b>${t.total} kr</b></div>
    <div class="sheet-foot"><button class="cta" data-act="pay">⚡ Pay with Vipps • ${t.total} NOK</button>
@@ -267,6 +299,7 @@ const actions={
  inc:d=>addLine({id:d.id,size:'M',tops:[]}),
  dec:d=>removeOne(d.id),
  filter:d=>{S.filter=d.id},
+ 'drink-size':d=>{S.drinkSize=d.id},
  extra:d=>{bumpExtra(d.id,1);showToast('Added '+byId(EXTRAS,d.id).name,()=>bumpExtra(d.id,-1))},
  mode:(d,el)=>{S.mode=el.dataset.mode},
  reorder:()=>{S.last.lines.forEach(l=>addLine(l,l.qty,{toast:false}));Object.entries(S.last.extras).forEach(([id,q])=>{S.extras[id]=(S.extras[id]||0)+q});
