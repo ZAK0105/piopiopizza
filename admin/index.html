@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#0F0F11">
+<title>Pio Pio Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<form class="login" id="login" hidden>
+  <div class="logo">pio pio<span>.</span> <small>admin</small></div>
+  <label for="pw">Password</label>
+  <input id="pw" type="password" autocomplete="current-password" required>
+  <div class="login-err" id="login-err" role="alert"></div>
+  <button class="btn primary" type="submit">Sign in</button>
+</form>
+
+<div id="shell" hidden>
+  <header class="topbar">
+    <div class="logo">pio pio<span>.</span> <small>admin</small></div>
+    <nav class="tabs" id="tabs" role="tablist">
+      <button role="tab" data-view="overview">Overview</button>
+      <button role="tab" data-view="kitchen">Kitchen <span class="count" id="active-count" hidden></span></button>
+      <button role="tab" data-view="orders">Orders</button>
+      <button role="tab" data-view="menu">Menu</button>
+      <button role="tab" data-view="settings">Settings</button>
+    </nav>
+    <div class="top-actions">
+      <span class="live" id="live" title="Live connection"><i></i><span>Live</span></span>
+      <button class="btn store" id="store-btn" aria-pressed="true"></button>
+      <button class="btn icon" id="sound-btn" aria-pressed="false" title="Sound on new order">🔕</button>
+      <button class="btn ghost" id="logout-btn">Sign out</button>
+    </div>
+  </header>
+  <main id="view"></main>
+</div>
+
+<div class="tip" id="tip" role="tooltip" hidden></div>
+<div class="toasts" id="toasts" aria-live="polite"></div>
+<script src="/menu.js"></script>
+<script src="admin.js"></script>
+</body>
+</html>

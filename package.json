@@ -1,0 +1,13 @@
+{
+  "name": "pio-pio-pizza",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Pio Pio Pizza – express ordering app, API and admin dashboard",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server/server.js",
+    "demo": "node server/server.js --demo",
+    "test": "node --test test/*.test.js",
+    "bundle": "node tools/bundle.js"
+  }
+}

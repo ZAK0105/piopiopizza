@@ -1,25 +1,53 @@
-# CODING AGENTS: READ THIS FIRST
+# Pio Pio Pizza
 
-This is a **handoff bundle** from Claude Design (claude.ai/design).
+Express pizza ordering: a mobile customer app, an orders API, and an admin dashboard with a live kitchen board.
+No dependencies — it needs only Node.js 20 or newer.
 
-A user mocked up designs in HTML/CSS/JS using an AI design tool, then exported this bundle so a coding agent can implement the designs for real.
+## Run it
 
-## What you should do — IMPORTANT
+```bash
+ADMIN_PASSWORD='choose-a-password' npm start     # http://localhost:3000
+npm run demo                                     # same, but loads 3 weeks of demo orders on first start
+npm test
+```
 
-**Read the chat transcripts first.** There are 1 chat transcript(s) in `chats/`. The transcripts show the full back-and-forth between the user and the design assistant — they tell you **what the user actually wants** and **where they landed** after iterating. Don't skip them. The final HTML files are the output, but the chat is where the intent lives.
+- Customer app: `http://localhost:3000/`
+- Admin: `http://localhost:3000/admin/`
 
-**Read `project/Pio Pio Pizza.dc.html` in full.** The user had this file open when they triggered the handoff, so it's almost certainly the primary design they want built. Read it top to bottom — don't skim. Then **follow its imports**: open every file it pulls in (shared components, CSS, scripts) so you understand how the pieces fit together before you start implementing.
+If `ADMIN_PASSWORD` is not set, a random password is generated and printed in the terminal at each start.
+Other settings: `PORT` (default 3000), `DATA_DIR` (default `./data`), `STORE_TZ` (default `Europe/Oslo`).
 
-**If anything is ambiguous, ask the user to confirm before you start implementing.** It's much cheaper to clarify scope up front than to build the wrong thing.
+## What is where
 
-## About the design files
+| Folder | What it is |
+|---|---|
+| `app/` | Customer app. `menu.js` is the single list of products and standard prices, shared with the server. |
+| `admin/` | Admin dashboard: Overview, Kitchen, Orders, Menu, Settings. |
+| `server/` | `server.js` (HTTP + API), `logic.js` (pricing, validation, order flow, statistics), `db.js` (JSON file store), `demo.js` (demo orders). |
+| `test/` | API tests. |
+| `tools/bundle.js` | `npm run bundle` builds `dist/pio-pio-pizza.html`, the customer app as one offline demo file. |
+| `project/`, `chats/` | The original Claude Design export. |
 
-The design medium is **HTML/CSS/JS** — these are prototypes, not production code. Your job is to **recreate them pixel-perfectly** in whatever technology makes sense for the target codebase (React, Vue, native, whatever fits). Match the visual output; don't copy the prototype's internal structure unless it happens to fit.
+## How it works
 
-**Don't render these files in a browser or take screenshots unless the user asks you to.** Everything you need — dimensions, colors, layout rules — is spelled out in the source. Read the HTML and CSS directly; a screenshot won't tell you anything they don't.
+- The customer app asks the server for prices, sold-out items and whether the kitchen is open. Without a server
+  (the single-file bundle) it runs as a self-contained demo with a simulated tracker.
+- Orders are priced on the server from `app/menu.js` plus the admin's price changes; totals sent by a browser are ignored.
+- Order steps: received → in oven → out for delivery (or ready for pickup) → done. The kitchen board moves an order
+  one step at a time and the customer's tracker follows.
+- The admin dashboard updates live over a server-sent event stream.
+- Data is one JSON file, `data/db.json`. Back it up by copying it.
 
-## Bundle contents
+## Before taking real orders
 
-- `README.md` — this file
-- `chats/` — conversation transcripts (read these!)
-- `project/` — the `Pio Pio Pizza ordering system` project files (HTML prototypes, assets, components)
+This is a working prototype, not a finished shop:
+
+- **Payments are simulated.** "Pay with Vipps" and the card form charge nothing. A payment provider (Vipps MobilePay,
+  Nexi/Nets, Stripe) must confirm payment before an order is created, and card details must be entered in the
+  provider's hosted fields, never in this app's own form.
+- **Run it behind HTTPS** (a reverse proxy or a hosting platform). The admin cookie is marked `Secure` when the
+  proxy sends `X-Forwarded-Proto: https`.
+- **One admin password, one server process.** There are no staff accounts, and the JSON store is meant for a single
+  shop on a single machine; move to a database before running several instances.
+- **Customer details are minimal.** Orders hold a delivery address but no name or phone number, and addresses in the
+  app are three fixed examples.
