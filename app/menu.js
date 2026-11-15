@@ -1,6 +1,7 @@
 // Pio Pio Pizza menu — the single source of truth for products and base prices.
 // Loaded by the customer app (as the PIOPIO_MENU global) and by the server (require).
 (function(root){
+/*BODY*/
 const PIZZAS=[
  {id:'margherita',name:'Margherita',ing:'San Marzano, fior di latte, basil',price:149,cats:['veggie']},
  {id:'piopio',name:'Pio Pio',ing:'Peri-peri chicken, red onion, chili honey',price:189,tag:'Hot',cats:['spicy','meat']},
@@ -36,5 +37,6 @@ const tag=(arr,group)=>arr.map(x=>Object.assign(x,{group}));
 const EXTRAS=[...tag(SIDES,'sides'),...tag(DIPS,'dips'),...tag(DRINKS,'drinks'),...tag(DESSERTS,'desserts')];
 const DELIVERY_FEE=49;
 const M={PIZZAS,SIZES,TOPPINGS,TOP_PRICE,MAX_TOPS,SIDES,DIPS,DESSERTS,BRANDS,BOTTLES,DRINKS,EXTRAS,DELIVERY_FEE};
+/*END*/
 if(typeof module!=='undefined'&&module.exports)module.exports=M;else root.PIOPIO_MENU=M;
 })(typeof globalThis!=='undefined'?globalThis:this);

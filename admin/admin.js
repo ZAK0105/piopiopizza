@@ -21,7 +21,10 @@ const S={view:VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):'ove
 try{S.checks=JSON.parse(sessionStorage.getItem('pp-checks'))||{}}catch(e){}
 
 // ---------- api ----------
+// A host page may provide its own backend (PP_BACKEND: api/connect/login); the default is this site's /api/admin.
+const B=window.PP_BACKEND||null;
 async function api(method,url,body){
+ if(B){try{return await B.api(method,url,body)}catch(e){if(e.status===401&&url!=='login'){showLogin();throw new Error('Signed out')}throw e}}
  const r=await fetch('/api/admin/'+url,{method,headers:body?{'Content-Type':'application/json'}:{},body:body?JSON.stringify(body):undefined});
  const data=await r.json().catch(()=>({}));
  if(r.status===401&&url!=='login'){showLogin();throw new Error('Signed out')}
@@ -253,19 +256,25 @@ function beep(){
   o.frequency.value=f;o.connect(g);g.connect(ctx.destination);const t=ctx.currentTime+i*.16;
   g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(.2,t+.02);g.gain.exponentialRampToValueAtTime(.0001,t+.3);o.start(t);o.stop(t+.32)})}catch(e){}
 }
-let es;
-function connect(){
- es?.close();es=new EventSource('/api/admin/stream');
- es.onopen=()=>$('live').classList.add('on');
- es.onerror=()=>$('live').classList.remove('on');
- es.addEventListener('order',e=>{const{type,order:o}=JSON.parse(e.data);
+// Live updates, whichever backend delivers them
+const live={
+ open:()=>$('live').classList.add('on'),
+ error:()=>$('live').classList.remove('on'),
+ order:({type,order:o})=>{
   if(['received','oven','out','ready'].includes(o.status))S.active.set(o.id,o);else{S.active.delete(o.id);delete S.checks[o.id]}
   if(type==='new'){beep();toast(`New order ${o.number} · ${kr(o.total)}`)}
   if(S.view==='kitchen')render();else renderChrome(); // other views refresh with their own data
-  statsSoon()});
- es.addEventListener('catalog',e=>{const c=JSON.parse(e.data);if(S.catalog){const i=S.catalog.findIndex(x=>x.id===c.id);if(i>=0)S.catalog[i]=c;if(S.view==='menu')render()}});
- es.addEventListener('settings',e=>{S.settings=JSON.parse(e.data);render()});
- es.addEventListener('reload',()=>{loadActive();loadStats();if(S.view==='orders')loadOrders()});
+  statsSoon()},
+ catalog:c=>{if(S.catalog){const i=S.catalog.findIndex(x=>x.id===c.id);if(i>=0)S.catalog[i]=c;if(S.view==='menu')render()}},
+ settings:s=>{S.settings=s;render()},
+ reload:()=>{loadActive();loadStats();if(S.view==='orders')loadOrders()}};
+let es;
+function connect(){
+ es?.close();
+ if(B){es={close:B.connect(live)};return}
+ es=new EventSource('/api/admin/stream');
+ es.onopen=live.open;es.onerror=live.error;
+ for(const k of['order','catalog','settings','reload'])es.addEventListener(k,e=>live[k](JSON.parse(e.data)));
 }
 
 // ---------- events ----------
@@ -298,6 +307,7 @@ document.addEventListener('submit',guard(async e=>{
  e.preventDefault();
  if(e.target.id==='login'){
   $('login-err').textContent='';
+  if(B)return B.login(); // the host signs the user in and comes back
   try{await api('POST','login',{password:$('pw').value})}catch(err){$('login-err').textContent=err.message;return}
   $('pw').value='';start()}
  else if(e.target.id==='settings-form'){const f=new FormData(e.target);
@@ -312,9 +322,10 @@ $('sound-btn').addEventListener('click',()=>{S.sound=!S.sound;render();beep()});
 $('logout-btn').addEventListener('click',guard(async()=>{await api('POST','logout',{});showLogin()}));
 
 // ---------- boot ----------
-function showLogin(){es?.close();$('shell').hidden=true;$('login').hidden=false;$('pw').focus()}
+function showLogin(){es?.close();$('shell').hidden=true;$('login').hidden=false;
+ if(B){$('pw').hidden=true;$('pw').required=false;$('pw').labels[0].hidden=true}else $('pw').focus()}
 async function start(){
- let me;try{me=await api('GET','me')}catch(e){return}
+ let me;try{me=await api('GET','me')}catch(e){if(e.status===403){showLogin();$('login-err').textContent=e.message}return}
  S.tz=me.tz;S.targetMin=me.targetMin;
  $('login').hidden=true;$('shell').hidden=false;render();
  loadSettings();loadActive();loadStats();if(S.view==='orders')loadOrders();if(S.view==='menu')loadCatalog();

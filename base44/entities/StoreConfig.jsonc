@@ -1,0 +1,20 @@
+{
+  "name": "StoreConfig",
+  "type": "object",
+  "properties": {
+    "open": { "type": "boolean", "default": true, "description": "Taking orders" },
+    "pauseMessage": { "type": "string", "description": "Shown to customers while paused" },
+    "deliveryFee": { "type": "number", "default": 49 },
+    "etaMin": { "type": "number", "default": 18, "description": "Promised delivery time, minutes" },
+    "pickupMin": { "type": "number", "default": 12, "description": "Promised pickup time, minutes" },
+    "overrides": { "type": "object", "description": "Per menu item: {price, available} where it differs from the standard menu", "additionalProperties": true }
+  },
+  "required": [],
+  // One record. Everyone reads it (the menu needs it); only admins change it.
+  "rls": {
+    "read": {},
+    "create": { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

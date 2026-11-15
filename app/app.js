@@ -21,6 +21,9 @@ const KEY='piopio-app-v2';
 const SPEED=Number(new URLSearchParams(location.search).get('speed'))||60; // demo: ?speed=1 for real time
 
 const $=id=>document.getElementById(id);
+// A host page may provide its own backend (PP_BACKEND: menu/placeOrder/order) and image URLs (PP_IMAGES); the default is this site's /api.
+const B=window.PP_BACKEND||null;
+const img=id=>window.PP_IMAGES?.[id]||`images/${id}.png`;
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const byId=(arr,id)=>arr.find(x=>x.id===id);
 
@@ -101,7 +104,7 @@ function renderMenu(){
   const q=pizzaQty(m.id);
   return `<article class="card${q?' has':''}${m.soldOut?' sold':''}" style="${enter?`animation-delay:${i*40}ms`:'animation:none'}">
    <button class="pic" data-act="open-pizza" data-id="${m.id}" aria-label="Customize ${m.name}">
-    <img src="images/${m.id}.png" alt="${m.name} pizza" loading="lazy">${q?`<span class="qtyb">${q}</span>`:''}</button>
+    <img src="${img(m.id)}" alt="${m.name} pizza" loading="lazy">${q?`<span class="qtyb">${q}</span>`:''}</button>
    <div class="body">
     <button class="name-row" data-act="open-pizza" data-id="${m.id}"><span class="name">${m.name}</span>${m.tag?`<span class="tag">${m.tag}</span>`:''}</button>
     <div class="ing">${m.ing}</div>
@@ -148,7 +151,7 @@ function renderSheet(){
  const body=$('sheet-body');
  if(sh.type==='pizza'){
   const m=byId(MENU,sh.id),unit=unitPrice(sh);
-  body.innerHTML=`<div class="detail-img"><img src="images/${m.id}.png" alt=""></div>
+  body.innerHTML=`<div class="detail-img"><img src="${img(m.id)}" alt=""></div>
    <h2 class="sh-title">${m.name} ${m.tag?`<span class="tag">${m.tag}</span>`:''}</h2><div class="sh-sub">${m.ing}</div>
    <div class="sh-label"><span>Size</span></div>
    <div class="sizes">${SIZES.map(z=>`<button class="opt" aria-pressed="${sh.size===z.id}" data-act="size" data-id="${z.id}">${z.label}<small>${z.cm} cm · ${m.price+z.add} kr</small></button>`).join('')}</div>
@@ -162,7 +165,7 @@ function renderSheet(){
   const t=totals();
   if(!t.items){S.sheet=null;return renderSheet()}
   body.innerHTML=`<h2 class="sh-title">Your bag</h2><div class="sh-sub">${S.mode==='delivery'?'Delivery to '+esc(byId(ADDRESSES,S.addr).line):'Pickup at Grünerløkka'}</div>
-   <div style="margin-top:8px">${S.lines.map((l,i)=>`<div class="row"><div class="thumb"><img src="images/${l.id}.png" alt=""></div>
+   <div style="margin-top:8px">${S.lines.map((l,i)=>`<div class="row"><div class="thumb"><img src="${img(l.id)}" alt=""></div>
      <div class="info"><b>${byId(MENU,l.id).name}</b><span>${esc(lineDesc(l))} · ${unitPrice(l)} kr</span></div>
      <div class="stepper"><button data-act="line" data-i="${i}" data-d="-1" aria-label="Fewer">−</button><span>${l.qty}</span><button class="plus" data-act="line" data-i="${i}" data-d="1" aria-label="More">+</button></div></div>`).join('')}
     ${EXTRAS.filter(e=>S.extras[e.id]).map(e=>`<div class="row"><div class="thumb">${e.icon||e.em}</div><div class="info"><b>${e.name}</b><span>${e.price} kr</span></div>
@@ -227,9 +230,9 @@ function startPay(method,label){
  const pause=new Promise(r=>setTimeout(r,1400)); // stands in for the payment provider's confirmation
  const local={lines:S.lines.map(l=>({...l})),extras:{...S.extras},total:totals().total};
  // Only the payment method goes to the server — never card details.
- const placed=LIVE?fetch('api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(
-   {lines:local.lines,extras:local.extras,mode:S.mode,address:S.mode==='delivery'?byId(ADDRESSES,S.addr).line:'',payment:{method}})})
-  .then(async r=>{const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.error||'Could not place the order');return b}):Promise.resolve(null);
+ const body={lines:local.lines,extras:local.extras,mode:S.mode,address:S.mode==='delivery'?byId(ADDRESSES,S.addr).line:'',payment:{method}};
+ const placed=!LIVE?Promise.resolve(null):B?B.placeOrder(body):fetch('api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+  .then(async r=>{const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.error||'Could not place the order');return b});
  Promise.all([placed,pause]).then(([o])=>{
   S.order=o?{...local,id:o.id,number:o.number,total:o.total,status:o.status,createdAt:o.createdAt,times:o.times,skew:o.now-Date.now()}:local;
   S.last={lines:local.lines,extras:local.extras};S.lines=[];S.extras={};
@@ -240,7 +243,7 @@ function startPay(method,label){
 // ---------- server sync ----------
 // Prices, sold-out items and opening status come from the server when there is one.
 async function syncMenu(){
- let m;try{const r=await fetch('api/menu',{cache:'no-store'});if(!r.ok)return;m=await r.json()}catch(e){return}
+ let m;try{if(B)m=await B.menu();else{const r=await fetch('api/menu',{cache:'no-store'});if(!r.ok)return;m=await r.json()}}catch(e){return}
  LIVE=true;STORE=m.settings;FEE=m.settings.deliveryFee;
  for(const it of[...MENU,...EXTRAS]){const s=m.items[it.id];if(s){it.price=s.price;it.soldOut=!s.available}}
  const gone=[...new Set([...S.lines.filter(l=>byId(MENU,l.id).soldOut).map(l=>byId(MENU,l.id).name),
@@ -252,7 +255,7 @@ async function syncMenu(){
 }
 async function syncOrder(){
  const o=S.order;if(!o?.id||['done','cancelled'].includes(o.status))return;
- try{const r=await fetch('api/orders/'+o.id,{cache:'no-store'});if(!r.ok)return;const b=await r.json();
+ try{let b;if(B)b=await B.order(o.id);else{const r=await fetch('api/orders/'+o.id,{cache:'no-store'});if(!r.ok)return;b=await r.json()}
   if(S.order!==o)return;o.status=b.status;o.times=b.times;o.skew=b.now-Date.now();save();if(S.screen==='tracker')renderTracker();else renderMenu()}catch(e){}
 }
 
