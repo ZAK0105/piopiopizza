@@ -23,10 +23,19 @@ Other settings: `PORT` (default 3000), `DATA_DIR` (default `./data`), `STORE_TZ`
 |---|---|
 | `app/` | Customer app. `menu.js` is the single list of products and standard prices, shared with the server. |
 | `admin/` | Admin dashboard: Overview, Kitchen, Orders, Menu, Settings. |
-| `server/` | `server.js` (HTTP + API), `logic.js` (pricing, validation, order flow, statistics), `db.js` (JSON file store), `demo.js` (demo orders). |
+| `app/core.js` | The order rules: pricing, validation, order steps, statistics. Shared by the Node server, Base44 and the dashboard. |
+| `server/` | `server.js` (HTTP + API), `logic.js` (order rules bound to the store), `db.js` (JSON file store), `demo.js` (demo orders). |
+| `base44/` | Base44-only files (see below). |
 | `test/` | API tests. |
 | `tools/bundle.js` | `npm run bundle` builds `dist/pio-pio-pizza.html`, the customer app as one offline demo file. |
 | `project/`, `chats/` | The original Claude Design export. |
+
+## Base44 version
+
+The same app runs on Base44 at https://piopio.base44.app (admin at `/admin`, sign in with a Base44 admin account).
+`npm run base44` builds `dist-base44/`, the files that go into the Base44 app. `base44/` holds the Base44-only parts:
+data models, the `placeOrder` and `trackOrder` backend functions, and `src/piopio/backend.js`, which connects the
+front-ends to Base44. Everything else is generated from `app/` and `admin/`, so edit those and rebuild.
 
 ## How it works
 
