@@ -7,6 +7,9 @@
     "status": { "type": "string", "enum": ["received", "oven", "ready", "out", "done", "cancelled"], "enumColors": ["blue", "yellow", "green", "purple", "gray", "red"], "default": "received" },
     "mode": { "type": "string", "enum": ["delivery", "pickup"] },
     "address": { "type": "string" },
+    "customer_name": { "type": "string" },
+    "customer_phone": { "type": "string", "description": "Norwegian number, +47 412 34 567" },
+    "note": { "type": "string", "description": "Customer's message for the driver" },
     "lines": { "type": "array", "description": "Pizzas", "items": { "type": "object", "properties": {
       "id": { "type": "string" }, "name": { "type": "string" }, "size": { "type": "string" },
       "tops": { "type": "array", "items": { "type": "string" } }, "qty": { "type": "number" }, "unit": { "type": "number" } } } },

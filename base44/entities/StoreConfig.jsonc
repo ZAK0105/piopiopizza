@@ -7,6 +7,7 @@
     "deliveryFee": { "type": "number", "default": 49 },
     "etaMin": { "type": "number", "default": 18, "description": "Promised delivery time, minutes" },
     "pickupMin": { "type": "number", "default": 12, "description": "Promised pickup time, minutes" },
+    "deliveryRadiusKm": { "type": "number", "default": 5, "description": "Deliveries only within this distance of the shop" },
     "overrides": { "type": "object", "description": "Per menu item: {price, available} where it differs from the standard menu", "additionalProperties": true }
   },
   "required": [],
