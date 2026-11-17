@@ -1,0 +1,21 @@
+{
+  "name": "Staff",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string" },
+    "role": { "type": "string", "enum": ["driver", "kitchen"], "enumColors": ["purple", "yellow"] },
+    "email": { "type": "string", "description": "The account they sign in to the staff dashboard with (lowercase)" },
+    "phone": { "type": "string", "description": "Shown to customers on their delivery" },
+    "vehicle": { "type": "string", "description": "Drivers: e.g. E-bike, Car · EV 1290" },
+    "active": { "type": "boolean", "default": true },
+    "demo": { "type": "boolean", "default": false, "description": "Sample staff, removed with the demo data" }
+  },
+  "required": ["name", "role"],
+  // Admins manage staff. Staff reach their orders through the staffApi function, which checks this list.
+  "rls": {
+    "create": { "user_condition": { "role": "admin" } },
+    "read": { "user_condition": { "role": "admin" } },
+    "update": { "user_condition": { "role": "admin" } },
+    "delete": { "user_condition": { "role": "admin" } }
+  }
+}

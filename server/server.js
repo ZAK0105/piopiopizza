@@ -17,6 +17,7 @@ function createApp({dataDir=process.env.DATA_DIR||path.join(ROOT,'data'),passwor
  const db=require('./db.js').open(dataDir);
  const generated=!password;if(generated)password=crypto.randomBytes(9).toString('base64url');
  const sessions=new Map(); // token -> expiry
+ const staffSessions=new Map(); // token -> {id, exp}
  const streams=new Set();  // open admin SSE responses
  const hits=new Map();     // rate limiting: key -> [timestamps]
 
@@ -24,7 +25,8 @@ function createApp({dataDir=process.env.DATA_DIR||path.join(ROOT,'data'),passwor
  const passwordOk=p=>crypto.timingSafeEqual(sha(p),sha(password));
  const limited=(key,max,windowMs)=>{const now=Date.now(),a=(hits.get(key)||[]).filter(t=>now-t<windowMs);a.push(now);hits.set(key,a);return a.length>max};
  const sweep=setInterval(()=>{const now=Date.now();for(const[k,a]of hits)if(!a.some(t=>now-t<600000))hits.delete(k);
-  for(const[t,exp]of sessions)if(exp<now)sessions.delete(t)},60000);sweep.unref();
+  for(const[t,exp]of sessions)if(exp<now)sessions.delete(t);
+  for(const[t,ss]of staffSessions)if(ss.exp<now)staffSessions.delete(t)},60000);sweep.unref();
  const broadcast=(event,data)=>{const msg=`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;for(const r of streams)r.write(msg)};
 
  const send=(res,status,body,headers={})=>{const s=JSON.stringify(body);
@@ -37,15 +39,23 @@ function createApp({dataDir=process.env.DATA_DIR||path.join(ROOT,'data'),passwor
   req.on('error',fail)});
  const cookie=(req,name)=>(req.headers.cookie||'').split(';').map(c=>c.trim().split('=')).find(c=>c[0]===name)?.[1];
  const authed=req=>{const t=cookie(req,'pp_admin'),exp=t&&sessions.get(t);return!!exp&&exp>Date.now()};
+ // The staff member making a request: their own PIN session, or for a signed-in admin, whoever they act as.
+ function staffOf(req,body){
+  if(authed(req)){if(!body.as)return{admin:true,me:null};const s=L.findStaff(db,body.as);if(!s)throw new Invalid('Staff member not found',404);return{admin:true,me:s}}
+  const t=cookie(req,'pp_staff'),ss=t&&staffSessions.get(t);
+  const s=ss&&ss.exp>Date.now()&&L.findStaff(db,ss.id);
+  if(!s||s.active===false)throw new Invalid('Sign in required',401);
+  return{admin:false,me:s};
+ }
  // Browsers send Origin on cross-site writes; reject any that is not this site.
  const sameOrigin=req=>{const o=req.headers.origin;if(!o)return true;try{return new URL(o).host===req.headers.host}catch(e){return false}};
  const ip=req=>req.socket.remoteAddress||'?';
 
  function serveStatic(req,res,url){
   let rel=decodeURIComponent(url.pathname);
-  if(rel==='/admin')return res.writeHead(302,{Location:'/admin/'}).end();
-  const base=rel.startsWith('/admin/')?'admin':'app';
-  rel=base==='admin'?rel.slice(7):rel.slice(1);
+  if(rel==='/admin'||rel==='/staff')return res.writeHead(302,{Location:rel+'/'}).end();
+  const base=rel.startsWith('/admin/')?'admin':rel.startsWith('/staff/')?'staff':'app';
+  rel=base==='app'?rel.slice(1):rel.slice(base.length+2);
   if(!rel||rel.endsWith('/'))rel+='index.html';
   const dir=path.join(ROOT,base),file=path.normalize(path.join(dir,rel));
   if(!file.startsWith(dir+path.sep))return send(res,403,{error:'Forbidden'});
@@ -69,6 +79,24 @@ function createApp({dataDir=process.env.DATA_DIR||path.join(ROOT,'data'),passwor
   if((x=/^\/api\/orders\/([0-9a-f]{24})$/.exec(p))&&m==='GET'){
    const o=L.findOrder(db,x[1]);if(!o)throw new Invalid('Order not found',404);return send(res,200,L.publicOrder(o))}
 
+  // ---- staff dashboard ----
+  if(p==='/api/staff/login'&&m==='POST'){
+   if(limited('staff-login:'+ip(req),10,300000))throw new Invalid('Too many attempts — wait a few minutes',429);
+   const s=L.staffByPin(db,(await readJson(req)).pin);if(!s)throw new Invalid('Wrong PIN',401);
+   const t=crypto.randomBytes(32).toString('hex');staffSessions.set(t,{id:s.id,exp:Date.now()+14*36e5});
+   const secure=req.headers['x-forwarded-proto']==='https'?'; Secure':'';
+   return send(res,200,{ok:true},{'Set-Cookie':`pp_staff=${t}; HttpOnly; SameSite=Strict; Path=/; Max-Age=50400${secure}`})}
+  if(p==='/api/staff/logout'&&m==='POST'){staffSessions.delete(cookie(req,'pp_staff'));
+   return send(res,200,{ok:true},{'Set-Cookie':'pp_staff=; HttpOnly; SameSite=Strict; Path=/; Max-Age=0'})}
+  if((x=/^\/api\/staff\/(me|board|act|location)$/.exec(p))&&m==='POST'){
+   const b=await readJson(req),{admin,me}=staffOf(req,b);
+   if(x[1]==='me')return send(res,200,{me:me&&L.C.staffView(me),admin,auth:'pin',
+    staff:admin?db.data.staff.filter(s=>s.active!==false).map(L.C.staffView):undefined});
+   if(!me)throw new Invalid('Choose who you are working as',400);
+   if(x[1]==='board')return send(res,200,{orders:L.C.staffBoard(db.data.orders,me),now:Date.now()});
+   if(x[1]==='act'){const o=L.staffAct(db,me,String(b.id),b.action);broadcast('order',{type:'update',order:o});return send(res,200,{ok:true,status:o.status})}
+   if(x[1]==='location'){const list=L.driverPos(db,me,{lat:b.lat,lng:b.lng});return send(res,200,{updated:list.length})}}
+
   // ---- admin session ----
   if(p==='/api/admin/login'&&m==='POST'){
    if(limited('login:'+ip(req),8,300000))throw new Invalid('Too many attempts — wait a few minutes',429);
@@ -82,7 +110,7 @@ function createApp({dataDir=process.env.DATA_DIR||path.join(ROOT,'data'),passwor
   if(!authed(req))throw new Invalid('Sign in required',401);
 
   // ---- admin ----
-  if(p==='/api/admin/me'&&m==='GET')return send(res,200,{ok:true,tz:L.TZ,targetMin:L.TARGET_MIN});
+  if(p==='/api/admin/me'&&m==='GET')return send(res,200,{ok:true,tz:L.TZ,targetMin:L.TARGET_MIN,staffAuth:'pin'});
   if(p==='/api/admin/stream'&&m==='GET'){
    res.writeHead(200,{'Content-Type':'text/event-stream','Cache-Control':'no-store','Connection':'keep-alive','X-Accel-Buffering':'no'});
    res.write('retry: 3000\n\n');streams.add(res);
@@ -97,7 +125,13 @@ function createApp({dataDir=process.env.DATA_DIR||path.join(ROOT,'data'),passwor
    if(q)list=list.filter(o=>o.number.toLowerCase().includes(q)||o.address.toLowerCase().includes(q));
    return send(res,200,{total:list.length,orders:list.slice(-limit).reverse()})}
   if((x=/^\/api\/admin\/orders\/([0-9a-f]{24})$/.exec(p))&&m==='PATCH'){
-   const o=L.transition(db,x[1],(await readJson(req)).action);broadcast('order',{type:'update',order:o});return send(res,200,o)}
+   const b=await readJson(req);
+   const o=L.transition(db,x[1],b.action,Date.now(),b.driverId);broadcast('order',{type:'update',order:o});return send(res,200,o)}
+  if(p==='/api/admin/staff'&&m==='GET')return send(res,200,db.data.staff.map(L.C.staffView));
+  if(p==='/api/admin/staff'&&m==='POST')return send(res,201,L.C.staffView(L.addStaff(db,await readJson(req))));
+  if((x=/^\/api\/admin\/staff\/([0-9a-f]{16})$/.exec(p))&&m==='PATCH')return send(res,200,L.C.staffView(L.updateStaff(db,x[1],await readJson(req))));
+  if((x=/^\/api\/admin\/staff\/([0-9a-f]{16})$/.exec(p))&&m==='DELETE'){L.removeStaff(db,x[1]);
+   for(const[t,ss]of staffSessions)if(ss.id===x[1])staffSessions.delete(t);return send(res,200,{ok:true})}
   if(p==='/api/admin/stats'&&m==='GET')return send(res,200,L.stats(db,+url.searchParams.get('days')||7));
   if(p==='/api/admin/catalog'&&m==='GET')return send(res,200,L.catalog(db));
   if((x=/^\/api\/admin\/catalog\/([\w-]{1,40})$/.exec(p))&&m==='PATCH'){

@@ -3,23 +3,23 @@
 (function(root){
 /*BODY*/
 const PIZZAS=[
- {id:'margherita',name:'Margherita',ing:'San Marzano, fior di latte, basil',price:149,cats:['veggie']},
- {id:'piopio',name:'Pio Pio',ing:'Peri-peri chicken, red onion, chili honey',price:189,tag:'Hot',cats:['spicy','meat']},
- {id:'pepperoni',name:'Pepperoni',ing:'Double pepperoni, mozzarella, oregano',price:179,cats:['meat']},
- {id:'funghi',name:'Funghi',ing:'Mushrooms, garlic cream, thyme, parmesan',price:179,cats:['veggie']},
- {id:'diavola',name:'Diavola',ing:'Spicy salami, nduja, jalapeño',price:189,cats:['spicy','meat']}];
-const SIZES=[{id:'S',label:'Small',cm:30,add:-20},{id:'M',label:'Medium',cm:33,add:0},{id:'L',label:'Large',cm:40,add:60}];
-const TOPPINGS=[{id:'cheese',name:'Extra cheese'},{id:'jalapeno',name:'Jalapeño'},{id:'nduja',name:'Nduja'},
- {id:'mushroom',name:'Mushrooms'},{id:'onion',name:'Red onion'},{id:'honey',name:'Chili honey'}];
+ {id:'margherita',name:'Margherita',ing:'San Marzano-tomater, fior di latte, basilikum',price:149,cats:['veggie']},
+ {id:'piopio',name:'Pio Pio',ing:'Peri-peri-kylling, rødløk, chilihonning',price:189,tag:'Sterk',cats:['spicy','meat']},
+ {id:'pepperoni',name:'Pepperoni',ing:'Dobbel pepperoni, mozzarella, oregano',price:179,cats:['meat']},
+ {id:'funghi',name:'Funghi',ing:'Sopp, hvitløkskrem, timian, parmesan',price:179,cats:['veggie']},
+ {id:'diavola',name:'Diavola',ing:'Sterk salami, nduja, jalapeño',price:189,cats:['spicy','meat']}];
+const SIZES=[{id:'S',label:'Liten',cm:30,add:-20},{id:'M',label:'Medium',cm:33,add:0},{id:'L',label:'Stor',cm:40,add:60}];
+const TOPPINGS=[{id:'cheese',name:'Ekstra ost'},{id:'jalapeno',name:'Jalapeño'},{id:'nduja',name:'Nduja'},
+ {id:'mushroom',name:'Sopp'},{id:'onion',name:'Rødløk'},{id:'honey',name:'Chilihonning'}];
 const TOP_PRICE=25,MAX_TOPS=3;
-const SIDES=[{id:'garlicbread',name:'Garlic bread',em:'🥖',price:59},{id:'cheesebread',name:'Cheesy garlic bread',em:'🧀',price:69},
- {id:'fries',name:'Fries',em:'🍟',price:49},{id:'sweetfries',name:'Sweet potato fries',em:'🍠',price:59},
- {id:'wings',name:'Chicken wings ×6',em:'🍗',price:89},{id:'mozzsticks',name:'Mozzarella sticks ×5',em:'🫕',price:79},
- {id:'onionrings',name:'Onion rings',em:'🧅',price:55},{id:'salad',name:'Side salad',em:'🥗',price:59}];
-const DIPS=[{id:'garlic',name:'Garlic dip',em:'🧄',price:25},{id:'chili',name:'Chili honey',em:'🍯',price:25},
- {id:'aioli',name:'Aioli',em:'🥣',price:25},{id:'bbq',name:'BBQ dip',em:'🔥',price:25},{id:'sriracha',name:'Sriracha mayo',em:'🌶️',price:25}];
-const DESSERTS=[{id:'tiramisu',name:'Tiramisu',em:'🍰',price:69},{id:'fondant',name:'Chocolate fondant',em:'🍫',price:69},
- {id:'icecream',name:'Vanilla ice cream',em:'🍨',price:59}];
+const SIDES=[{id:'garlicbread',name:'Hvitløksbrød',em:'🥖',price:59},{id:'cheesebread',name:'Hvitløksbrød med ost',em:'🧀',price:69},
+ {id:'fries',name:'Pommes frites',em:'🍟',price:49},{id:'sweetfries',name:'Søtpotetfries',em:'🍠',price:59},
+ {id:'wings',name:'Kyllingvinger ×6',em:'🍗',price:89},{id:'mozzsticks',name:'Mozzarellasticks ×5',em:'🫕',price:79},
+ {id:'onionrings',name:'Løkringer',em:'🧅',price:55},{id:'salad',name:'Salat',em:'🥗',price:59}];
+const DIPS=[{id:'garlic',name:'Hvitløksdip',em:'🧄',price:25},{id:'chili',name:'Chilihonning',em:'🍯',price:25},
+ {id:'aioli',name:'Aioli',em:'🥣',price:25},{id:'bbq',name:'BBQ-dip',em:'🔥',price:25},{id:'sriracha',name:'Srirachamajones',em:'🌶️',price:25}];
+const DESSERTS=[{id:'tiramisu',name:'Tiramisu',em:'🍰',price:69},{id:'fondant',name:'Sjokoladefondant',em:'🍫',price:69},
+ {id:'icecream',name:'Vaniljeis',em:'🍨',price:59}];
 // Each brand is sold as 0.5 L and 1.5 L; c = bottle colour, l = label colour
 const BRANDS=[{id:'coke',name:'Coca-Cola',c:'#E61A27'},{id:'cokezero',name:'Coca-Cola Zero',c:'#161616',l:'#E61A27'},
  {id:'pepsi',name:'Pepsi',c:'#0B4EA2'},{id:'pepsimax',name:'Pepsi Max',c:'#0A0A0A',l:'#1F8BFF'},

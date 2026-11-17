@@ -4,7 +4,7 @@
   "properties": {
     "number": { "type": "string", "description": "Order number shown to staff and customer, e.g. PP-1042" },
     "track_code": { "type": "string", "description": "Random code the customer uses to follow the order" },
-    "status": { "type": "string", "enum": ["received", "oven", "out", "ready", "done", "cancelled"], "enumColors": ["blue", "yellow", "purple", "purple", "green", "red"], "default": "received" },
+    "status": { "type": "string", "enum": ["received", "oven", "ready", "out", "done", "cancelled"], "enumColors": ["blue", "yellow", "green", "purple", "gray", "red"], "default": "received" },
     "mode": { "type": "string", "enum": ["delivery", "pickup"] },
     "address": { "type": "string" },
     "lines": { "type": "array", "description": "Pizzas", "items": { "type": "object", "properties": {
@@ -18,7 +18,10 @@
     "payment_method": { "type": "string", "enum": ["vipps", "card"] },
     "times": { "type": "object", "description": "When each status was reached (epoch ms)", "additionalProperties": true },
     "placed_at": { "type": "number", "description": "When the order was placed (epoch ms)" },
-    "demo": { "type": "boolean", "default": false, "description": "Demo order, removable from Settings" }
+    "demo": { "type": "boolean", "default": false, "description": "Demo order, removable from Settings" },
+    "dest": { "type": "object", "description": "Delivery point {lat, lng} for the map", "additionalProperties": true },
+    "driver": { "type": "object", "description": "Assigned driver {id, name, phone, vehicle}", "additionalProperties": true },
+    "pos": { "type": "object", "description": "Driver's last position {lat, lng, at} while out for delivery", "additionalProperties": true }
   },
   "required": ["number", "status", "mode", "total", "payment_method", "placed_at"],
   // Staff only. Customers place and follow orders through the placeOrder / trackOrder functions.

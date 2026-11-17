@@ -21,13 +21,16 @@ for(const m of['menu','core']){write(`base44/shared/${m}.ts`,esm(`app/${m}.js`))
 const gen=f=>'// GENERATED from '+f+' by tools/base44-build.js — edit the source, not this file.\n';
 write('src/piopio/app.js',gen('app/app.js')+read('app/app.js'));
 write('src/piopio/admin.js',gen('admin/admin.js')+read('admin/admin.js'));
+write('src/piopio/staff.js',gen('staff/staff.js')+read('staff/staff.js'));
 write('src/piopio/app.css',read('app/styles.css'));
 write('src/piopio/admin.css',read('admin/admin.css'));
+write('src/piopio/staff.css',read('staff/staff.css'));
 
 // page markup: what sits inside <body>, without the script tags
 const body=f=>{const s=read(f);return s.slice(s.indexOf('<body>')+6,s.indexOf('</body>')).replace(/<script[^>]*><\/script>\s*/g,'').trim()};
-write('src/piopio/markup.js',gen('app/index.html and admin/index.html')+
- 'export const customerHtml='+JSON.stringify(body('app/index.html'))+';\nexport const adminHtml='+JSON.stringify(body('admin/index.html'))+';\n');
+write('src/piopio/markup.js',gen('app/, admin/ and staff/index.html')+
+ 'export const customerHtml='+JSON.stringify(body('app/index.html'))+';\nexport const adminHtml='+JSON.stringify(body('admin/index.html'))+
+ ';\nexport const staffHtml='+JSON.stringify(body('staff/index.html'))+';\n');
 
 // pizza photos: public URLs once uploaded to the app's media library (tools/base44-images.json), local paths otherwise
 const urls=path.join(__dirname,'base44-images.json');

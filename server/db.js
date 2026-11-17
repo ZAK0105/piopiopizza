@@ -6,6 +6,7 @@ const path=require('path');
 const DEFAULTS=()=>({
  seq:1000,            // last order number issued
  orders:[],
+ staff:[],           // {id,name,role,phone,vehicle,active,pin_hash,demo}
  overrides:{},        // itemId -> {price?:number, available?:boolean}
  settings:{open:true,pauseMessage:'',deliveryFee:49,etaMin:18,pickupMin:12}});
 

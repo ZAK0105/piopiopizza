@@ -1,11 +1,11 @@
-// Connects the Pio Pio front-ends (app.js, admin.js) to Base44: entities, backend functions and sign-in.
+// Connects the Pio Pio front-ends (app.js, admin.js, staff.js) to Base44: entities, backend functions and sign-in.
 // It offers the same operations the stand-alone Node server does, so both front-ends run unchanged.
 import { base44 } from '@/api/base44Client';
 import M from './menu.js';
 import C from './core.js';
 
 const TZ = 'Europe/Oslo';
-const { Order, StoreConfig } = base44.entities;
+const { Order, StoreConfig, Staff } = base44.entities;
 const rows = (x) => (Array.isArray(x) ? x : (x?.items || []));
 const fail = (status, message) => Object.assign(new Error(message), { status });
 const sdkError = (e) => fail(e?.response?.status || e?.status || 500, e?.response?.data?.error || e?.data?.error || e?.message || 'Request failed');
@@ -27,14 +27,16 @@ const order = (code) => invoke('trackOrder', { code });
 
 // ---- admin ----
 let live = null, muted = false;
-const known = new Map(); // order id -> last status passed to the dashboard
+const known = new Map(); // order id -> what the dashboard last saw (status, driver, GPS on/off)
+const seenKey = (o) => `${o.status}|${o.driver?.id || ''}|${o.pos ? 1 : 0}`;
 function emit(o, isNew) {
   if (!live || muted) return;
   const seen = known.get(o.id);
-  if (seen === o.status) return;
-  known.set(o.id, o.status);
+  if (seen === seenKey(o)) return;
+  known.set(o.id, seenKey(o));
   live.order({ type: isNew && seen === undefined ? 'new' : 'update', order: o });
 }
+const isActive = (key) => C.ACTIVE.includes(key.split('|')[0]);
 const countOrders = async (q = {}) => { try { return await Order.count(q); } catch (e) { return rows(await Order.filter(q, '-placed_at', 500)).length; } };
 async function ordersSince(since) {
   const all = [];
@@ -54,19 +56,20 @@ async function adminApi(method, url, body) {
   if (!user) throw fail(401, 'Sign in required');
   if (user.role !== 'admin') throw fail(403, `${user.email} is not an admin of this app.`);
 
-  if (path === 'me') return { ok: true, tz: TZ, targetMin: C.TARGET_MIN };
+  if (path === 'me') return { ok: true, tz: TZ, targetMin: C.TARGET_MIN, staffAuth: 'account' };
   if (path === 'orders') {
     const f = q.get('filter') || 'active', text = (q.get('q') || '').toLowerCase(), limit = Math.min(+q.get('limit') || 200, 500);
     let list = f === 'active' ? await activeOrders()
       : rows(await Order.filter(f === 'done' || f === 'cancelled' ? { status: f } : {}, '-placed_at', 500)).map(C.fromRecord);
     if (text) list = list.filter((o) => o.number.toLowerCase().includes(text) || o.address.toLowerCase().includes(text));
-    if (f === 'active') for (const o of list) known.set(o.id, o.status);
+    if (f === 'active') for (const o of list) known.set(o.id, seenKey(o));
     const total = text || f !== 'all' ? list.length : await countOrders();
     return { total, orders: list.slice(0, limit) };
   }
   if (seg[0] === 'orders' && seg[1] && method === 'PATCH') {
     const o = C.fromRecord(await Order.get(seg[1]));
-    const change = C.transition(o, body.action);
+    const driver = body.driverId ? await Staff.get(body.driverId).catch(() => { throw fail(404, 'Staff member not found'); }) : undefined;
+    const change = C.transition(o, body.action, Date.now(), { driver });
     await Order.update(o.id, change);
     Object.assign(o, change); emit(o, false);
     return o;
@@ -92,6 +95,23 @@ async function adminApi(method, url, body) {
     if (method === 'PATCH') await saveConfig(C.patchSettings(body));
     return settingsOf(await getConfig());
   }
+  if (path === 'staff' && method === 'GET') return rows(await Staff.list('name', 500)).map(C.staffView);
+  if (path === 'staff' && method === 'POST') {
+    const n = C.patchStaff(body, true); delete n.pin;
+    if (!n.email) throw fail(400, 'Enter the e-mail they will sign in with');
+    if (rows(await Staff.filter({ email: n.email })).length) throw fail(409, 'Someone on the staff list already uses that e-mail');
+    const rec = await Staff.create({ active: true, ...n });
+    // they need an account in the app to sign in to the staff dashboard
+    let invited = false;
+    try { await base44.users.inviteUser(n.email, 'user'); invited = true; } catch (e) { /* already a user, or invites are off */ }
+    return { ...C.staffView(rec), invited };
+  }
+  if (seg[0] === 'staff' && seg[1] && method === 'PATCH') {
+    const n = C.patchStaff(body, false); delete n.pin;
+    if (n.email && rows(await Staff.filter({ email: n.email })).some((x) => x.id !== seg[1])) throw fail(409, 'Someone on the staff list already uses that e-mail');
+    return C.staffView(await Staff.update(seg[1], n));
+  }
+  if (seg[0] === 'staff' && seg[1] && method === 'DELETE') { await Staff.delete(seg[1]); return { ok: true }; }
   if (path === 'demo' && method === 'POST') {
     const cfg = await getConfig(), ov = cfg?.overrides, st = settingsOf(cfg);
     let next = 1001 + await countOrders();
@@ -103,7 +123,11 @@ async function adminApi(method, url, body) {
       return made;
     }
     if (body.action === 'seed') {
-      const list = C.demoHistory(M, ov, st, TZ).map((o) => C.toRecord({ ...o, number: 'PP-' + next++ }));
+      // the sample team, once; no e-mail or phone, so nobody real is contacted
+      if (!rows(await Staff.filter({ demo: true })).length)
+        await Staff.bulkCreate(C.DEMO_STAFF.map(({ pin, ...s }) => ({ ...s, active: true, demo: true })));
+      const drivers = rows(await Staff.filter({ role: 'driver', active: true }));
+      const list = C.demoHistory(M, ov, st, TZ, 21, Date.now(), drivers).map((o) => C.toRecord({ ...o, number: 'PP-' + next++ }));
       muted = true;
       try { for (let i = 0; i < list.length; i += 100) await Order.bulkCreate(list.slice(i, i + 100)); }
       finally { muted = false; }
@@ -115,6 +139,7 @@ async function adminApi(method, url, body) {
       muted = true;
       try { for (let i = 0; i < 50 && await countOrders({ demo: true }) > 0; i++) await Order.deleteMany({ demo: true }); }
       finally { muted = false; }
+      await Staff.deleteMany({ demo: true });
       live?.reload();
       return { removed };
     }
@@ -132,9 +157,9 @@ function connect(handlers) {
   const poll = async () => {
     try {
       const list = await activeOrders(), ids = new Set(list.map((o) => o.id));
-      for (const o of list) { if (first) known.set(o.id, o.status); else emit(o, true); }
+      for (const o of list) { if (first) known.set(o.id, seenKey(o)); else emit(o, true); }
       // an order that left the active list was finished or cancelled elsewhere
-      for (const [id, status] of known) if (C.ACTIVE.includes(status) && !ids.has(id)) { known.delete(id); if (!first) live?.reload(); }
+      for (const [id, key] of known) if (isActive(key) && !ids.has(id)) { known.delete(id); if (!first) live?.reload(); }
       first = false; live?.open();
     } catch (e) { live?.error(); }
   };
@@ -149,4 +174,7 @@ window.PP_BACKEND = {
   api: (method, url, body) => guard(adminApi(method, url, body)),
   connect,
   login: () => base44.auth.redirectToLogin(window.location.href),
+  logout: () => base44.auth.logout(window.location.href),
+  // staff dashboard
+  staff: (op, body) => invoke('staffApi', { ...body, op }),
 };

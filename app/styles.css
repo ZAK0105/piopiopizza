@@ -226,8 +226,14 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .step .tx{padding:1px 0 16px;display:flex;flex-direction:column;gap:2px}
 .step .tx b{font-size:15px}
 .step .tx span{font-size:13px;color:var(--muted)}
-.map{position:relative;height:128px;background:#131316;border-radius:22px 22px 0 0;overflow:hidden}
-.map .dist{position:absolute;left:12px;top:10px;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;background:rgba(15,15,17,.85);color:var(--muted)}
+.map{position:relative;background:#131316;border-radius:22px 22px 0 0;overflow:hidden}
+.map-canvas{height:150px;background:#131316}
+.map-canvas svg{display:block}
+.map .leaflet-container{background:#131316;font:inherit}
+.map .leaflet-control-attribution{background:rgba(15,15,17,.75);color:var(--dim);font-size:9px}
+.map .leaflet-control-attribution a{color:var(--muted)}
+.map .stale{position:absolute;right:12px;top:10px;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;background:rgba(250,178,25,.18);color:#FCD34D;z-index:500}
+.map .dist{z-index:500;position:absolute;left:12px;top:10px;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;background:rgba(15,15,17,.85);color:var(--muted)}
 .driver{display:flex;align-items:center;gap:12px;padding:14px}
 .avatar{width:48px;height:48px;flex:none;border-radius:50%;background:var(--line2);display:flex;align-items:center;justify-content:center;font-weight:700}
 .call{height:48px;padding:0 18px;border-radius:14px;display:flex;align-items:center;gap:6px;font-weight:700;font-size:15px;text-decoration:none;color:#fff;background:var(--line2)}

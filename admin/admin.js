@@ -6,17 +6,20 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const kr=n=>Math.round(n).toLocaleString('en-US').replace(/,/g,' ')+' kr';
 const compact=n=>n>=10000?(n/1000).toFixed(n>=100000?0:1).replace(/\.0$/,'')+'K':String(Math.round(n));
 
-const VIEWS=['overview','kitchen','orders','menu','settings'];
-const STATUS={received:'Received',oven:'In oven',out:'Out for delivery',ready:'Ready for pickup',done:'Done',cancelled:'Cancelled'};
-const NEXT={received:'MOVE TO OVEN →',oven:{delivery:'SEND OUT →',pickup:'READY FOR PICKUP →'},out:'DELIVERED ✓',ready:'PICKED UP ✓'};
+const VIEWS=['overview','kitchen','orders','menu','staff','settings'];
+const STATUS={received:'Received',oven:'In oven',out:'Out for delivery',ready:'Ready',done:'Done',cancelled:'Cancelled'};
+const statusText=o=>o.status==='ready'?(o.mode==='delivery'?'Waiting for driver':'Ready for pickup'):STATUS[o.status];
+const NEXT={received:'MOVE TO OVEN →',oven:{delivery:'READY FOR DRIVER →',pickup:'READY FOR PICKUP →'},ready:{delivery:'OUT FOR DELIVERY →',pickup:'PICKED UP ✓'},out:'DELIVERED ✓'};
 const LANES=[{key:'received',title:'Received',color:'var(--st-received)',has:['received']},
  {key:'oven',title:'In oven',color:'var(--st-oven)',has:['oven']},
- {key:'out',title:'Out / ready',color:'var(--st-out)',has:['out','ready']}];
+ {key:'ready',title:'Ready',color:'var(--st-done)',has:['ready']},
+ {key:'out',title:'Out for delivery',color:'var(--st-out)',has:['out']}];
+const ROLE={driver:'Driver',kitchen:'Kitchen'};
 const GROUPS=[['pizzas','Pizzas'],['sides','Sides'],['dips','Dips'],['drinks','Drinks'],['desserts','Desserts']];
 const SIZE={S:'Small',M:'Medium',L:'Large'};
 
 const S={view:VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):'overview',
- days:7,stats:null,active:new Map(),orders:null,orderFilter:'all',orderQuery:'',catalog:null,settings:null,
+ days:7,stats:null,active:new Map(),orders:null,orderFilter:'all',orderQuery:'',catalog:null,settings:null,staff:null,staffEdit:null,staffAuth:'pin',
  tz:'Europe/Oslo',targetMin:20,sound:false,tables:{},checks:{}};
 try{S.checks=JSON.parse(sessionStorage.getItem('pp-checks'))||{}}catch(e){}
 
@@ -74,10 +77,10 @@ function columns(data,{value,label,tipValue,tipLabel,tick=compact,every=1,dim,W=
  });
  return s+'</svg>';
 }
-const hbars=(rows,unit)=>{const max=Math.max(...rows.map(r=>r.qty),1);
+const hbars=(rows,unit,detail=r=>kr(r.revenue),empty='No sales in this period')=>{const max=Math.max(...rows.map(r=>r.qty),1);
  return rows.length?`<div class="hbars">${rows.map(r=>`<span class="name" title="${esc(r.name)}">${esc(r.name)}</span>
-  <span><div class="bar" tabindex="0" style="width:${(100*r.qty/max).toFixed(1)}%" data-tv="${r.qty} ${unit}" data-tl="${esc(r.name)} · ${esc(kr(r.revenue))}"></div></span>
-  <span class="val">${r.qty}</span>`).join('')}</div>`:'<div class="empty">No sales in this period</div>'};
+  <span><div class="bar" tabindex="0" style="width:${(100*r.qty/max).toFixed(1)}%" data-tv="${r.qty} ${unit}" data-tl="${esc(r.name)} · ${esc(detail(r))}"></div></span>
+  <span class="val">${r.qty}</span>`).join('')}</div>`:`<div class="empty">${empty}</div>`};
 // Tall segmented bar for a two-way split; a share is printed inside only when it fits.
 function split(parts,format){
  const total=parts.reduce((a,p)=>a+p.value,0);if(!total)return'<div class="empty">No sales in this period</div>';
@@ -138,6 +141,9 @@ function renderOverview(){
   ${chartCard('mode','span-6','Delivery or pickup',`${period} · share of orders`,
     split([{name:'Delivery',value:st.mode.delivery,slot:1},{name:'Pickup',value:st.mode.pickup,slot:2}],n=>n+' orders'),
     table(['Type','Orders'],[['Delivery',st.mode.delivery],['Pickup',st.mode.pickup]]))}
+  ${chartCard('drv','span-12','Deliveries by driver',`${period} · completed deliveries; hover for average time on the road`,
+    hbars(st.byDriver.map(d=>({...d,qty:d.deliveries})),'deliveries',d=>`${d.avgMin} min on the road on average`,'No completed deliveries with a driver in this period'),
+    table(['Driver','Deliveries','Avg. minutes on the road'],st.byDriver.map(d=>[d.name,d.deliveries,d.avgMin])))}
  </div>`;
 }
 
@@ -145,23 +151,35 @@ function renderOverview(){
 const lineText=l=>`${l.qty}× ${l.name}`;
 const topName=t=>window.PIOPIO_MENU?.TOPPINGS.find(x=>x.id===t)?.name||t;
 const lineSub=l=>l.size?[SIZE[l.size],...(l.tops||[]).map(t=>'+ '+topName(t))].join(' · '):'';
+const drivers=()=>(S.staff||[]).filter(s=>s.role==='driver'&&s.active);
+function driverRow(o){
+ if(o.mode!=='delivery')return'';
+ if(o.status==='out')return`<div class="driver-row"><span>🛵</span><b>${esc(o.driver?.name||'No driver')}</b>${o.pos?'<span class="gps">● GPS</span>':''}</div>`;
+ const list=drivers(),cur=o.driver?.id||'';
+ // a driver who has left the list still shows on orders they already hold
+ const opts=[...list.map(d=>[d.id,d.name]),...(cur&&!list.some(d=>d.id===cur)?[[cur,o.driver.name]]:[])];
+ return`<label class="driver-row"><span>🛵</span><select data-assign="${o.id}" aria-label="Driver for ${esc(o.number)}">
+  <option value="">${list.length?'No driver yet':'Add drivers under Staff'}</option>${opts.map(([id,n])=>`<option value="${id}" ${id===cur?'selected':''}>${esc(n)}</option>`).join('')}</select></label>`;
+}
 function ticket(o,color){
  const items=[...o.lines,...o.extras],checks=S.checks[o.id]||{};
- const next=typeof NEXT[o.status]==='string'?NEXT[o.status]:NEXT[o.status][o.mode];
+ const needsDriver=o.mode==='delivery'&&o.status==='ready'&&!o.driver;
+ const next=needsDriver?'CHOOSE A DRIVER ↑':typeof NEXT[o.status]==='string'?NEXT[o.status]:NEXT[o.status][o.mode];
  return`<article class="ticket" style="--c:${color}">
   <div class="ticket-top"><span class="no">${esc(o.number.replace('PP-','#'))}</span><span class="timer" data-since="${o.createdAt}"></span></div>
   <div class="meta"><span class="tag">${o.mode==='delivery'?'🛵 Delivery':'🛍️ Pickup'}</span>${o.demo?'<span class="tag">Demo</span>':''}
    <span>${esc(clock(o.createdAt))}${o.address?' · '+esc(o.address):''}</span></div>
+  ${driverRow(o)}
   <ul>${items.map((l,i)=>`<li><label><input type="checkbox" data-check="${o.id}" data-i="${i}" ${checks[i]?'checked':''}>
    <span>${esc(lineText(l))}${lineSub(l)?`<small>${esc(lineSub(l))}</small>`:''}</span></label></li>`).join('')}</ul>
-  <button class="go" data-act="advance" data-id="${o.id}">${next}</button>
+  <button class="go" data-act="advance" data-id="${o.id}" ${needsDriver?'disabled':''}>${next}</button>
   <div class="sub-actions">${o.status!=='received'?`<button class="link" data-act="back" data-id="${o.id}">← Move back</button>`:'<span></span>'}
    <button class="link" data-act="cancel" data-id="${o.id}" data-no="${esc(o.number)}">Cancel order</button></div></article>`;
 }
 function renderKitchen(){
  const all=[...S.active.values()].sort((a,b)=>a.createdAt-b.createdAt);
  return`<div class="page-head"><div><h1>Kitchen</h1><p>Oldest first. Timers turn amber at 12 minutes and red at ${S.targetMin}.</p></div>
-  <button class="btn" data-act="simulate">+ Simulate an order</button></div>
+  <div class="actions"><a class="btn" href="/staff" target="_blank" rel="noopener">Staff dashboard ↗</a><button class="btn" data-act="simulate">+ Simulate an order</button></div></div>
   <div class="board">${LANES.map(l=>{const list=all.filter(o=>l.has.includes(o.status));
    return`<section class="lane"><div class="lane-head"><i style="background:${l.color}"></i>${l.title}<span>${list.length}</span></div>
     ${list.map(o=>ticket(o,l.color)).join('')||'<div class="empty">Nothing here</div>'}</section>`}).join('')}</div>`;
@@ -182,14 +200,14 @@ function renderOrders(){
     `<button data-act="order-filter" data-f="${k}" aria-pressed="${S.orderFilter===k}">${l}</button>`).join('')}</div>
    <input type="search" id="order-q" placeholder="Search order number or address" value="${esc(S.orderQuery)}" aria-label="Search orders"></div>
   ${!list?'':!list.orders.length?'<div class="empty">No orders match</div>':`<div class="table-wrap"><table>
-   <thead><tr><th>Order</th><th>Placed</th><th>Type</th><th>Items</th><th>Paid with</th><th class="num">Total</th><th class="num">To door</th><th>Status</th></tr></thead>
+   <thead><tr><th>Order</th><th>Placed</th><th>Type</th><th>Items</th><th>Paid with</th><th>Driver</th><th class="num">Total</th><th class="num">To door</th><th>Status</th></tr></thead>
    <tbody>${list.orders.map(o=>{const door=o.status==='done'?(o.times.done-o.createdAt)/60000:null;
     return`<tr><td><b>${esc(o.number)}</b>${o.demo?' <span class="tag">Demo</span>':''}</td>
      <td>${esc(dayLabel(dayKey(o.createdAt)))} ${esc(clock(o.createdAt))}</td>
      <td>${o.mode==='delivery'?'Delivery':'Pickup'}${o.address?`<br><span style="color:var(--muted)">${esc(o.address)}</span>`:''}</td>
-     <td class="items">${esc(itemsText(o))}</td><td>${o.payment.method==='vipps'?'Vipps':'Card'}</td>
+     <td class="items">${esc(itemsText(o))}</td><td>${o.payment.method==='vipps'?'Vipps':'Card'}</td><td>${o.driver?esc(o.driver.name):'–'}</td>
      <td class="num"><b>${esc(kr(o.total))}</b></td><td class="num">${door==null?'–':door.toFixed(0)+' min'}</td>
-     <td><span class="chip ${o.status}"><i></i>${STATUS[o.status]}</span></td></tr>`}).join('')}</tbody></table></div>`}</section>`;
+     <td><span class="chip ${o.status}"><i></i>${statusText(o)}</span></td></tr>`}).join('')}</tbody></table></div>`}</section>`;
 }
 
 // ---------- menu ----------
@@ -202,6 +220,37 @@ function renderMenu(){
     ${rows.map(c=>`<div class="menu-row${c.available?'':' off'}"><div class="n">${esc(c.name)}${c.price!==c.basePrice?`<small>Standard price ${c.basePrice} kr · <button class="link" data-act="price-reset" data-id="${c.id}">reset</button></small>`:''}</div>
      <div class="price-in"><input type="number" min="0" step="1" value="${c.price}" data-price="${c.id}" aria-label="Price of ${esc(c.name)} in kroner"><span>kr</span></div>
      <label class="switch"><input type="checkbox" data-avail="${c.id}" ${c.available?'checked':''} aria-label="${esc(c.name)} available"><span>${c.available?'Available':'Sold out'}</span></label></div>`).join('')}</section>`}).join('')}`;
+}
+
+// ---------- staff ----------
+function staffForm(){
+ const e=S.staffEdit,s=e.id?S.staff.find(x=>x.id===e.id):{role:'driver',active:true},pin=S.staffAuth==='pin';
+ return`<section class="card"><div class="card-head"><div><h2>${e.id?'Edit '+esc(s.name):'Add a staff member'}</h2>
+  <p>${pin?'Staff sign in to the staff dashboard with their PIN.':'Staff sign in to the staff dashboard with the e-mail you enter here. They get an invitation to the app.'}</p></div></div>
+  <form class="form staff-form" id="staff-form">
+   <label>Name<input type="text" name="name" maxlength="40" required value="${esc(s.name||'')}"></label>
+   <label>Role<select name="role">${Object.entries(ROLE).map(([k,v])=>`<option value="${k}" ${s.role===k?'selected':''}>${v}</option>`).join('')}</select></label>
+   <label>Phone <span class="hint">shown to customers on their delivery, so they can call</span><input type="tel" name="phone" maxlength="20" value="${esc(s.phone||'')}" placeholder="+47 …"></label>
+   <label>Vehicle <span class="hint">drivers only, e.g. “E-bike” or “Car · EV 1290”</span><input type="text" name="vehicle" maxlength="40" value="${esc(s.vehicle||'')}"></label>
+   ${pin?`<label>PIN <span class="hint">4–6 digits${e.id&&s.hasPin?', leave empty to keep the current one':''}</span><input type="password" name="pin" inputmode="numeric" pattern="[0-9]{4,6}" maxlength="6" autocomplete="new-password" ${e.id?'':'required'}></label>`
+    :`<label>E-mail <span class="hint">the address they sign in with</span><input type="email" name="email" maxlength="120" value="${esc(s.email||'')}" ${e.id?'':'required'}></label>`}
+   <div class="actions"><button class="btn primary" type="submit">${e.id?'Save':'Add'}</button><button class="btn ghost" type="button" data-act="staff-cancel">Cancel</button></div>
+  </form></section>`;
+}
+function renderStaff(){
+ const list=S.staff;
+ if(!list)return'<div class="page-head"><h1>Staff</h1></div>';
+ const group=(role,title)=>{const rows=list.filter(s=>s.role===role);
+  return`<section class="card"><div class="card-head"><div><h2>${title}</h2><p>${rows.filter(s=>s.active).length} active</p></div></div>
+   ${rows.length?rows.map(s=>`<div class="staff-row${s.active?'':' off'}">
+    <div class="avatar-s">${esc(s.name[0]||'?')}</div>
+    <div class="n"><b>${esc(s.name)}</b>${s.demo?' <span class="tag">Demo</span>':''}<small>${esc([s.vehicle,s.phone,S.staffAuth==='pin'?(s.hasPin?'PIN set':'No PIN'):s.email].filter(Boolean).join(' · '))}</small></div>
+    <label class="switch"><input type="checkbox" data-staff-active="${s.id}" ${s.active?'checked':''} aria-label="${esc(s.name)} active"><span>${s.active?'Active':'Off'}</span></label>
+    <div class="actions"><button class="btn" data-act="staff-edit" data-id="${s.id}">Edit</button><button class="btn ghost danger" data-act="staff-del" data-id="${s.id}" data-name="${esc(s.name)}">Remove</button></div>
+   </div>`).join(''):'<div class="empty">Nobody yet</div>'}</section>`};
+ return`<div class="page-head"><div><h1>Staff</h1><p>Drivers take deliveries and share their position with the customer; kitchen staff move orders through the oven.</p></div>
+  <div class="actions"><a class="btn" href="/staff" target="_blank" rel="noopener">Open staff dashboard ↗</a>${S.staffEdit?'':'<button class="btn primary" data-act="staff-new">+ Add staff</button>'}</div></div>
+  ${S.staffEdit?staffForm():''}${group('driver','Drivers')}${group('kitchen','Kitchen')}`;
 }
 
 // ---------- settings ----------
@@ -218,10 +267,11 @@ function renderSettings(){
     <label>Promised pickup time (minutes)<input type="number" name="pickupMin" min="0" max="180" step="1" value="${s.pickupMin}"></label>
     <div class="actions"><button class="btn primary" type="submit">Save</button></div></form></section>
   <section class="card span-6"><div class="card-head"><div><h2>Demo data</h2><p>Explore the dashboard before real orders arrive</p></div></div>
-   <p style="color:var(--text2);margin-top:0">Demo orders are labelled and never mix with real ones: removing them leaves real orders untouched.</p>
+   <p style="color:var(--text2);margin-top:0">Demo orders are labelled and never mix with real ones: removing them leaves real orders untouched.
+    Loading the history also adds a sample team of three drivers and two kitchen staff${S.staffAuth==='pin'?' (staff dashboard PINs 1111–5555)':''}, removed together with the demo orders.</p>
    <div class="actions"><button class="btn" data-act="simulate">+ Simulate one order</button>
     <button class="btn" data-act="seed">Load 3 weeks of demo history</button>
-    <button class="btn danger" data-act="clear-demo">Remove all demo orders</button></div></section></div>`;
+    <button class="btn danger" data-act="clear-demo">Remove all demo orders and staff</button></div></section></div>`;
 }
 
 // ---------- render ----------
@@ -235,7 +285,7 @@ function render(){
  renderChrome();
  // keep focus and caret in inputs that survive the re-render
  const a=document.activeElement,keep=a&&(a.id||a.dataset.price)?{id:a.id,price:a.dataset.price,pos:a.selectionStart}:null;
- $('view').innerHTML={overview:renderOverview,kitchen:renderKitchen,orders:renderOrders,menu:renderMenu,settings:renderSettings}[S.view]();
+ $('view').innerHTML={overview:renderOverview,kitchen:renderKitchen,orders:renderOrders,menu:renderMenu,staff:renderStaff,settings:renderSettings}[S.view]();
  if(keep){const el=keep.id?$(keep.id):document.querySelector(`[data-price="${keep.price}"]`);
   if(el&&el!==document.activeElement){el.focus();try{el.setSelectionRange(keep.pos,keep.pos)}catch(e){}}}
  tickTimers();
@@ -247,7 +297,8 @@ const loadActive=guard(async()=>{const r=await api('GET','orders?filter=active&l
 const loadOrders=guard(async()=>{S.orders=await api('GET',`orders?filter=${S.orderFilter}&limit=200&q=${encodeURIComponent(S.orderQuery)}`);if(S.view==='orders')render()});
 const loadCatalog=guard(async()=>{S.catalog=await api('GET','catalog');if(S.view==='menu')render()});
 const loadSettings=guard(async()=>{S.settings=await api('GET','settings');render()});
-function loadView(){({overview:loadStats,kitchen:loadActive,orders:loadOrders,menu:loadCatalog,settings:loadSettings})[S.view]()}
+const loadStaff=guard(async()=>{S.staff=await api('GET','staff');if(S.view==='staff'||S.view==='kitchen')render()});
+function loadView(){({overview:loadStats,kitchen:loadActive,orders:loadOrders,menu:loadCatalog,staff:loadStaff,settings:loadSettings})[S.view]()}
 let statsTimer;const statsSoon=()=>{clearTimeout(statsTimer);statsTimer=setTimeout(()=>{loadStats();if(S.view==='orders')loadOrders()},400)};
 
 function beep(){
@@ -267,7 +318,7 @@ const live={
   statsSoon()},
  catalog:c=>{if(S.catalog){const i=S.catalog.findIndex(x=>x.id===c.id);if(i>=0)S.catalog[i]=c;if(S.view==='menu')render()}},
  settings:s=>{S.settings=s;render()},
- reload:()=>{loadActive();loadStats();if(S.view==='orders')loadOrders()}};
+ reload:()=>{loadActive();loadStats();loadStaff();if(S.view==='orders')loadOrders()}};
 let es;
 function connect(){
  es?.close();
@@ -285,8 +336,12 @@ const actions={
  back:async d=>{await api('PATCH','orders/'+d.id,{action:'back'})},
  cancel:async d=>{if(confirm(`Cancel order ${d.no}? This cannot be undone.`))await api('PATCH','orders/'+d.id,{action:'cancel'})},
  simulate:async()=>{await api('POST','demo',{action:'order'})},
- seed:async()=>{const r=await api('POST','demo',{action:'seed'});toast(`Loaded ${r.created} demo orders`)},
- 'clear-demo':async()=>{if(!confirm('Remove every demo order? Real orders are kept.'))return;const r=await api('POST','demo',{action:'clear'});toast(`Removed ${r.removed} demo orders`)},
+ seed:async()=>{const r=await api('POST','demo',{action:'seed'});toast(`Loaded ${r.created} demo orders`);loadStaff()},
+ 'clear-demo':async()=>{if(!confirm('Remove every demo order and the sample staff? Real orders and staff are kept.'))return;const r=await api('POST','demo',{action:'clear'});toast(`Removed ${r.removed} demo orders`);loadStaff()},
+ 'staff-new':()=>{S.staffEdit={};render();document.querySelector('#staff-form input')?.focus()},
+ 'staff-edit':d=>{S.staffEdit={id:d.id};render();document.querySelector('#staff-form input')?.focus()},
+ 'staff-cancel':()=>{S.staffEdit=null;render()},
+ 'staff-del':async d=>{if(!confirm(`Remove ${d.name}? Orders they handled keep their name.`))return;await api('DELETE','staff/'+d.id);S.staffEdit=null;await loadStaff();toast(`${d.name} removed`)},
  'order-filter':d=>{S.orderFilter=d.f;render();loadOrders()},
  'price-reset':async d=>{await api('PATCH','catalog/'+d.id,{price:null})}};
 document.addEventListener('click',guard(async e=>{
@@ -297,6 +352,11 @@ document.addEventListener('change',guard(async e=>{
  const t=e.target;
  if(t.dataset.check){(S.checks[t.dataset.check]||(S.checks[t.dataset.check]={}))[t.dataset.i]=t.checked;
   try{sessionStorage.setItem('pp-checks',JSON.stringify(S.checks))}catch(err){}}
+ else if(t.dataset.assign){const id=t.dataset.assign,v=t.value;
+  try{const o=await api('PATCH','orders/'+id,v?{action:'assign',driverId:v}:{action:'unassign'});if(S.active.has(id))S.active.set(id,o);render()}
+  catch(err){render();throw err}}
+ else if(t.dataset.staffActive){const id=t.dataset.staffActive;
+  try{await api('PATCH','staff/'+id,{active:t.checked})}finally{await loadStaff()}}
  else if(t.dataset.avail){try{await api('PATCH','catalog/'+t.dataset.avail,{available:t.checked})}catch(err){t.checked=!t.checked;throw err}}
  else if(t.dataset.price){const v=Number(t.value);
   if(!Number.isInteger(v)||v<0){toast('Enter the price as a whole number of kroner',true);render();return}
@@ -310,6 +370,11 @@ document.addEventListener('submit',guard(async e=>{
   if(B)return B.login(); // the host signs the user in and comes back
   try{await api('POST','login',{password:$('pw').value})}catch(err){$('login-err').textContent=err.message;return}
   $('pw').value='';start()}
+ else if(e.target.id==='staff-form'){const f=new FormData(e.target),b={};
+  for(const k of['name','role','phone','vehicle','email','pin'])if(f.has(k))b[k]=f.get(k);
+  if(b.pin==='')delete b.pin;
+  const id=S.staffEdit?.id,r=id?await api('PATCH','staff/'+id,b):await api('POST','staff',b);
+  S.staffEdit=null;await loadStaff();toast(id?'Saved':r.invited?`${r.name} added and invited`:`${r.name} added`)}
  else if(e.target.id==='settings-form'){const f=new FormData(e.target);
   S.settings=await api('PATCH','settings',{open:f.get('open')==='on',pauseMessage:f.get('pauseMessage'),
    deliveryFee:Number(f.get('deliveryFee')),etaMin:Number(f.get('etaMin')),pickupMin:Number(f.get('pickupMin'))});
@@ -326,9 +391,9 @@ function showLogin(){es?.close();$('shell').hidden=true;$('login').hidden=false;
  if(B){$('pw').hidden=true;$('pw').required=false;$('pw').labels[0].hidden=true}else $('pw').focus()}
 async function start(){
  let me;try{me=await api('GET','me')}catch(e){if(e.status===403){showLogin();$('login-err').textContent=e.message}return}
- S.tz=me.tz;S.targetMin=me.targetMin;
+ S.tz=me.tz;S.targetMin=me.targetMin;S.staffAuth=me.staffAuth||'pin';
  $('login').hidden=true;$('shell').hidden=false;render();
- loadSettings();loadActive();loadStats();if(S.view==='orders')loadOrders();if(S.view==='menu')loadCatalog();
+ loadSettings();loadActive();loadStats();loadStaff();if(S.view==='orders')loadOrders();if(S.view==='menu')loadCatalog();
  connect();
 }
 setInterval(tickTimers,1000);

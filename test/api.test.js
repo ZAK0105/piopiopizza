@@ -55,7 +55,7 @@ test('kitchen flow: advance through every step, then no further',async()=>{
 
 test('sold-out items and price changes apply to new orders',async()=>{
  await call('PATCH','/api/admin/catalog/piopio',{available:false});
- const r=await call('POST','/api/orders',order());assert.equal(r.status,409);assert.match(r.body.error,/sold out/);
+ const r=await call('POST','/api/orders',order());assert.equal(r.status,409);assert.match(r.body.error,/utsolgt/);
  await call('PATCH','/api/admin/catalog/piopio',{available:true,price:200});
  assert.equal((await call('GET','/api/menu')).body.items.piopio.price,200);
  assert.equal((await call('POST','/api/orders',order())).body.total,620+59+50+49);
@@ -86,3 +86,79 @@ test('static files: app, admin, and no path traversal',async()=>{
  assert.equal((await fetch(base+'/admin/')).status,200);
  for(const p of['/../server/server.js','/%2e%2e/package.json','/admin/..%2f..%2fpackage.json','/data/db.json'])
   assert.notEqual((await fetch(base+p)).status,200,p)});
+
+// ---- staff ----
+let staffCookie='';
+const staffCall=async(op,body={},ck=staffCookie)=>{
+ const r=await fetch(base+'/api/staff/'+op,{method:'POST',headers:{'Content-Type':'application/json',...(ck?{Cookie:ck}:{})},body:JSON.stringify(body)});
+ return{status:r.status,body:await r.json().catch(()=>null),headers:r.headers}};
+
+test('admin manages staff; PINs are never sent back',async()=>{
+ assert.equal((await call('POST','/api/admin/staff',{name:'',role:'driver',pin:'1234'})).status,400);
+ assert.equal((await call('POST','/api/admin/staff',{name:'Kari',role:'chef',pin:'1234'})).status,400);
+ assert.equal((await call('POST','/api/admin/staff',{name:'Kari',role:'driver',pin:'12'})).status,400);
+ const r=await call('POST','/api/admin/staff',{name:'Kari Nord',role:'driver',phone:'+47 400 00 000',vehicle:'Scooter',pin:'4321'});
+ assert.equal(r.status,201);assert.equal(r.body.hasPin,true);assert.equal(r.body.pin,undefined);assert.equal(r.body.pin_hash,undefined);
+ assert.equal((await call('POST','/api/admin/staff',{name:'Per',role:'kitchen',pin:'4321'})).status,409,'PIN must be unique');
+ const k=await call('POST','/api/admin/staff',{name:'Per Kokk',role:'kitchen',pin:'8765'});assert.equal(k.status,201);
+ const list=(await call('GET','/api/admin/staff')).body;assert.equal(list.length,2);assert.ok(list.every(x=>!('pin_hash' in x)));
+});
+
+test('driver flow: claim, pick up, share position, deliver — and the customer sees it',async()=>{
+ assert.equal((await staffCall('login',{pin:'0000'},'')).status,401);
+ const login=await staffCall('login',{pin:'4321'},'');assert.equal(login.status,200);
+ staffCookie=login.headers.get('set-cookie').split(';')[0];
+ const me=(await staffCall('me')).body.me;assert.equal(me.role,'driver');
+ const placed=(await call('POST','/api/orders',order({dest:{lat:59.93,lng:10.76}}),false)).body;
+ assert.deepEqual((await call('GET','/api/orders/'+placed.id,null,false)).body.dest,{lat:59.93,lng:10.76});
+ let board=(await staffCall('board')).body.orders;const o=board.find(x=>x.number===placed.number);
+ assert.ok(o,'free delivery is on the driver board');assert.equal(o.address,'Markveien 35');
+ assert.equal((await staffCall('act',{id:o.id,action:'advance'})).status,403,'cannot leave before claiming');
+ assert.equal((await staffCall('act',{id:o.id,action:'claim'})).status,200);
+ let pub=(await call('GET','/api/orders/'+placed.id,null,false)).body;assert.equal(pub.driver.name,'Kari Nord');assert.equal(pub.pos,null);
+ assert.equal((await staffCall('act',{id:o.id,action:'advance'})).status,409,'not ready yet');
+ // the kitchen bakes it
+ const kc=(await staffCall('login',{pin:'8765'},'')).headers.get('set-cookie').split(';')[0];
+ assert.ok((await staffCall('board',{},kc)).body.orders.some(x=>x.id===o.id));
+ assert.equal((await staffCall('act',{id:o.id,action:'claim'},kc)).status,400);
+ for(const st of['oven','ready'])assert.equal((await staffCall('act',{id:o.id,action:'advance'},kc)).body.status,st);
+ assert.equal((await staffCall('act',{id:o.id,action:'advance'},kc)).status,409,'kitchen does not send deliveries out');
+ assert.equal((await staffCall('act',{id:o.id,action:'advance'})).body.status,'out');
+ assert.equal((await staffCall('location',{lat:59.925,lng:10.758})).body.updated,1);
+ assert.equal((await staffCall('location',{lat:'x',lng:10})).status,400);
+ pub=(await call('GET','/api/orders/'+placed.id,null,false)).body;
+ assert.equal(pub.status,'out');assert.equal(pub.pos.lat,59.925);assert.equal(pub.address,undefined);
+ assert.equal((await staffCall('act',{id:o.id,action:'advance'})).body.status,'done');
+ pub=(await call('GET','/api/orders/'+placed.id,null,false)).body;assert.equal(pub.pos,null,'position hidden after delivery');
+ const s=(await call('GET','/api/admin/stats?days=1')).body;assert.ok(s.byDriver.some(d=>d.name==='Kari Nord'&&d.deliveries>=1));
+});
+
+test('drivers cannot touch other drivers\' orders; admin assigns and needs a driver to send out',async()=>{
+ const staff=(await call('GET','/api/admin/staff')).body,kari=staff.find(x=>x.name==='Kari Nord');
+ const other=(await call('POST','/api/admin/staff',{name:'Ola Bud',role:'driver',pin:'2468'})).body;
+ const placed=(await call('POST','/api/orders',order(),false)).body;
+ const id=(await call('GET','/api/admin/orders?filter=active')).body.orders.find(x=>x.number===placed.number).id;
+ for(let i=0;i<2;i++)await call('PATCH','/api/admin/orders/'+id,{action:'advance'});
+ assert.equal((await call('PATCH','/api/admin/orders/'+id,{action:'advance'})).status,409,'no driver yet');
+ assert.equal((await call('PATCH','/api/admin/orders/'+id,{action:'assign',driverId:other.id})).body.driver.name,'Ola Bud');
+ assert.ok(!(await staffCall('board')).body.orders.some(x=>x.id===id),'hidden from other drivers');
+ assert.equal((await staffCall('act',{id,action:'claim'})).status,409);
+ assert.equal((await staffCall('act',{id,action:'advance'})).status,403);
+ // an admin can act as a staff member
+ assert.equal((await fetch(base+'/api/staff/act',{method:'POST',headers:{'Content-Type':'application/json',Cookie:cookie},body:JSON.stringify({id,action:'advance',as:other.id})}).then(r=>r.json())).status,'out');
+ assert.equal((await call('PATCH','/api/admin/orders/'+id,{action:'unassign'})).status,409,'too late to change driver');
+ // switching a driver off ends their access
+ await call('PATCH','/api/admin/staff/'+kari.id,{active:false});
+ assert.equal((await staffCall('board')).status,401);
+ await call('PATCH','/api/admin/staff/'+kari.id,{active:true});
+ assert.equal((await call('DELETE','/api/admin/staff/'+other.id)).status,200);
+});
+
+test('demo data brings a sample team and assigns drivers',async()=>{
+ const n=(await call('POST','/api/admin/demo',{action:'seed'})).body.created;assert.ok(n>300);
+ const staff=(await call('GET','/api/admin/staff')).body;assert.equal(staff.filter(x=>x.demo).length,5);
+ assert.equal((await staffCall('login',{pin:'1111'},'')).status,200);
+ const s=(await call('GET','/api/admin/stats?days=7')).body;assert.equal(s.byDriver.filter(d=>/Jonas|Amira|Lars/.test(d.name)).length,3);
+ await call('POST','/api/admin/demo',{action:'clear'});
+ assert.equal((await call('GET','/api/admin/staff')).body.filter(x=>x.demo).length,0);
+});
