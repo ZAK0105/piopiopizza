@@ -18,20 +18,6 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .island{width:110px;height:32px;border-radius:20px;background:#000;position:absolute;left:50%;top:10px;transform:translateX(-50%)}
 .batt{width:17px;height:11px;border-radius:2px;border:1.5px solid #fff;opacity:.9}
 .home-ind{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);width:134px;height:5px;border-radius:3px;background:#fff;opacity:.85;z-index:30;pointer-events:none}
-/* Narrow or short windows (phones, side panels): drop the frame so the dock is always on screen */
-@media (max-width:500px),(max-height:940px){
-  .stage{padding:0;min-height:0}
-  .device{width:100%;max-width:430px;height:100vh;height:100dvh;border-radius:0;padding:0;box-shadow:none;background:none}
-  .screen{border-radius:0}
-  .statusbar,.home-ind{display:none}
-  /* Normal page flow + sticky dock: works even when the host sizes the frame to its content */
-  .device,.screen{height:auto;min-height:100vh;overflow:visible;margin:0 auto}
-  .view{position:relative;inset:auto}
-  .scroller{position:static;overflow:visible;padding:8px 0 16px}
-  .dock{position:sticky;bottom:0}
-  .overlay,.sheet{position:fixed}
-  .sheet{max-width:430px;margin:0 auto}
-}
 
 .view{position:absolute;inset:0}
 .view[hidden]{display:none}
@@ -230,6 +216,7 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 .map-canvas{height:150px;background:#131316}
 .map-canvas svg{display:block}
 .map .leaflet-container{background:#131316;font:inherit}
+.map .dark-tiles{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.4)}
 .map .leaflet-control-attribution{background:rgba(15,15,17,.75);color:var(--dim);font-size:9px}
 .map .leaflet-control-attribution a{color:var(--muted)}
 .map .stale{position:absolute;right:12px;top:10px;font-size:11px;font-weight:700;padding:4px 8px;border-radius:6px;background:rgba(250,178,25,.18);color:#FCD34D;z-index:500}
@@ -247,3 +234,19 @@ button:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-off
 @keyframes pp-pop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
 @keyframes pp-in{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* Last, so it overrides the framed layout above. */
+/* Narrow or short windows (phones, side panels): drop the frame so the dock is always on screen */
+@media (max-width:500px),(max-height:940px){
+  .stage{padding:0;min-height:0}
+  .device{width:100%;max-width:430px;height:100vh;height:100dvh;border-radius:0;padding:0;box-shadow:none;background:none}
+  .screen{border-radius:0}
+  .statusbar,.home-ind{display:none}
+  /* Normal page flow + sticky dock: works even when the host sizes the frame to its content */
+  .device,.screen{height:auto;min-height:100vh;overflow:visible;margin:0 auto}
+  .view{position:relative;inset:auto}
+  .scroller{position:static;overflow:visible;padding:8px 0 16px}
+  .dock{position:sticky;bottom:0}
+  .overlay,.sheet{position:fixed}
+  .sheet{max-width:430px;margin:0 auto}
+}

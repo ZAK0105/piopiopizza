@@ -276,8 +276,9 @@ function mapNode(){
  mapEl=document.createElement('div');mapEl.className='map-canvas';
  if(window.L){
   lmap=L.map(mapEl,{zoomControl:false,attributionControl:true,scrollWheelZoom:false});
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-   {subdomains:'abcd',maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>'}).addTo(lmap);
+  // standard OpenStreetMap tiles, darkened in CSS to match the app
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+   {maxZoom:19,className:'dark-tiles',attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(lmap);
   lmap.setView([SHOP.lat,SHOP.lng],15);
  }
  return mapEl;
