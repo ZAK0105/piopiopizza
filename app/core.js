@@ -6,8 +6,8 @@ const TARGET_MIN=20; // the "door in 20" promise
 // Delivery orders wait at 'ready' until a driver picks them up; pickup orders wait there for the customer.
 const FLOW={delivery:['received','oven','ready','out','done'],pickup:['received','oven','ready','done']};
 const ACTIVE=['received','oven','out','ready'];
-const DEFAULT_SETTINGS={open:true,pauseMessage:'',deliveryFee:49,etaMin:18,pickupMin:12};
-const SHOP={name:'Pio Pio Grünerløkka',address:'Thorvald Meyers gate 12',lat:59.9226,lng:10.7590};
+const DEFAULT_SETTINGS={open:true,pauseMessage:'',deliveryFee:49,etaMin:18,pickupMin:12,deliveryRadiusKm:5};
+const SHOP={name:'Pio Pio Grünerløkka',address:'Thorvald Meyers gate 12',lat:59.92898,lng:10.75990};
 const STAFF_ROLES=['driver','kitchen'];
 
 class Invalid extends Error{constructor(msg,status=400){super(msg);this.status=status}}
@@ -16,6 +16,17 @@ const isInt=(n,min,max)=>Number.isInteger(n)&&n>=min&&n<=max;
 // A map position, or null when the input is not one.
 const toPos=p=>p&&typeof p==='object'&&Number.isFinite(p.lat)&&Number.isFinite(p.lng)&&Math.abs(p.lat)<=90&&Math.abs(p.lng)<=180
  ?{lat:Math.round(p.lat*1e5)/1e5,lng:Math.round(p.lng*1e5)/1e5}:null;
+// Straight-line distance in km, close enough at city scale
+const distKm=(a,b)=>{const r=Math.PI/180,x=(b.lng-a.lng)*r*Math.cos((a.lat+b.lat)/2*r),y=(b.lat-a.lat)*r;return Math.hypot(x,y)*6371};
+// A Norwegian phone number as "+47 412 34 567", or null. Accepts spaces, +47 and 0047.
+function normPhone(v){
+ if(typeof v!=='string')return null;
+ let d=v.replace(/[\s().-]/g,'');
+ if(d.startsWith('+47'))d=d.slice(3);else if(d.startsWith('0047'))d=d.slice(4);
+ if(!/^[2-9][0-9]{7}$/.test(d))return null;
+ // mobiles (4/9) are written 412 34 567, landlines 22 33 44 55
+ return /^[49]/.test(d)?`+47 ${d.slice(0,3)} ${d.slice(3,5)} ${d.slice(5)}`:`+47 ${d.slice(0,2)} ${d.slice(2,4)} ${d.slice(4,6)} ${d.slice(6)}`;
+}
 
 // ---- catalog ----
 // overrides: {itemId:{price?,available?}} set by the admin on top of the menu's standard prices
@@ -27,7 +38,7 @@ function catalog(M,overrides){
 function publicMenu(M,overrides,settings){
  const items={};for(const c of catalog(M,overrides))items[c.id]={price:c.price,available:c.available};
  const s={...DEFAULT_SETTINGS,...settings};
- return{items,settings:{open:s.open,pauseMessage:s.pauseMessage,deliveryFee:s.deliveryFee,etaMin:s.etaMin,pickupMin:s.pickupMin}};
+ return{items,settings:{open:s.open,pauseMessage:s.pauseMessage,deliveryFee:s.deliveryFee,etaMin:s.etaMin,pickupMin:s.pickupMin,deliveryRadiusKm:s.deliveryRadiusKm}};
 }
 // Returns the new override for one item ({} = back to standard), or throws Invalid.
 function patchOverride(item,current,patch){
@@ -45,6 +56,8 @@ function patchSettings(patch){
  if('pauseMessage' in patch){if(typeof patch.pauseMessage!=='string'||patch.pauseMessage.length>120)throw new Invalid('pauseMessage is too long');n.pauseMessage=patch.pauseMessage.trim()}
  for(const[k,max]of[['deliveryFee',1000],['etaMin',180],['pickupMin',180]])
   if(k in patch){if(!isInt(patch[k],0,max))throw new Invalid(`${k} must be a whole number between 0 and ${max}`);n[k]=patch[k]}
+ if('deliveryRadiusKm' in patch){const v=patch.deliveryRadiusKm;
+  if(typeof v!=='number'||!(v>=.5&&v<=50))throw new Invalid('The delivery radius must be between 0.5 and 50 km');n.deliveryRadiusKm=Math.round(v*10)/10}
  return n;
 }
 
@@ -77,14 +90,23 @@ function priceOrder(M,overrides,settings,body,{demo=false,now=Date.now(),force=f
  }
  if(!count)throw new Invalid('Handlekurven er tom');
  if(count>60)throw new Invalid('Det var mye pizza — ring oss for store bestillinger');
- let address='';
+ // who to contact; demo orders have no real person behind them
+ const c=body.customer&&typeof body.customer==='object'?body.customer:{};
+ const name=typeof c.name==='string'?c.name.trim().replace(/\s+/g,' ').slice(0,60):'';
+ const phone=normPhone(c.phone);
+ if(!demo){if(name.length<2)throw new Invalid('Skriv inn navnet ditt');if(!phone)throw new Invalid('Skriv inn et gyldig norsk mobilnummer')}
+ const note=typeof body.note==='string'?body.note.trim().slice(0,200):'';
+ let address='',dest=null;
  if(mode==='delivery'){address=typeof body.address==='string'?body.address.trim().slice(0,120):'';
-  if(!address)throw new Invalid('Leveringsadresse mangler')}
+  if(!address)throw new Invalid('Leveringsadresse mangler');
+  dest=toPos(body.dest);if(!dest)throw new Invalid('Velg adressen fra listen, så vi vet hvor den er');
+  const km=distKm(SHOP,dest);
+  if(km>s.deliveryRadiusKm&&!force)throw new Invalid(`Adressen er ${km.toFixed(1).replace('.',',')} km unna — vi leverer innen ${String(s.deliveryRadiusKm).replace('.',',')} km`,422)}
  const method=body.payment?.method;if(method!=='vipps'&&method!=='card')throw new Invalid('payment.method must be vipps or card');
  const subtotal=lines.reduce((a,l)=>a+l.qty*l.unit,0)+extras.reduce((a,e)=>a+e.qty*e.unit,0);
  const fee=mode==='delivery'?s.deliveryFee:0;
  const order={createdAt:now,status:'received',times:{received:now},mode,address,lines,extras,subtotal,fee,total:subtotal+fee,payment:{method},
-  dest:mode==='delivery'?toPos(body.dest):null,driver:null,pos:null};
+  customer:{name,phone:phone||''},note,dest,driver:null,pos:null};
  if(demo)order.demo=true;
  return order;
 }
@@ -133,6 +155,7 @@ function patchStaff(patch,creating){
 const staffView=s=>({id:s.id,name:s.name,role:s.role,phone:s.phone||'',vehicle:s.vehicle||'',email:s.email||'',active:s.active!==false,demo:!!s.demo,hasPin:!!s.pin_hash});
 // What a staff member sees about an order.
 const boardOrder=o=>({id:o.id,number:o.number,status:o.status,mode:o.mode,address:o.address,dest:o.dest||null,createdAt:o.createdAt,times:o.times,
+ customer:o.customer||{name:'',phone:''},note:o.note||'',
  lines:o.lines.map(l=>({name:l.name,size:l.size,tops:l.tops,qty:l.qty})),extras:o.extras.map(e=>({name:e.name,qty:e.qty})),driver:o.driver||null,demo:!!o.demo});
 // The orders a staff member works on: kitchen staff see every open order, drivers see deliveries that are theirs or still free.
 function staffBoard(orders,me){
@@ -226,6 +249,7 @@ const DEMO_STAFF=[{name:'Jonas Berg',role:'driver',vehicle:'Electric scooter · 
 const PIZZA_W=[['margherita',22],['piopio',30],['pepperoni',26],['funghi',12],['diavola',16]];
 // Opening hours 11–22 with a lunch bump and a dinner peak
 const HOUR_W=[[11,3],[12,7],[13,6],[14,3],[15,3],[16,5],[17,9],[18,13],[19,12],[20,9],[21,5],[22,2]];
+const FIRST=['Ingrid','Ola','Nora','Emil','Sara','Jakob','Leah','Filip','Maja','Henrik','Amina','Mohammed','Thea','Lukas','Ida','Ali'];
 function randomBody(M){
  const st=pick(STREETS);
  const lines=[],n=weighted([[1,50],[2,32],[3,13],[4,5]]);
@@ -239,6 +263,7 @@ function randomBody(M){
  const mode=Math.random()<.74?'delivery':'pickup';
  return{lines,extras,mode,address:mode==='delivery'?`${st[0]} ${1+Math.floor(Math.random()*60)}`:'',
   dest:mode==='delivery'?{lat:st[1]+(Math.random()-.5)*.002,lng:st[2]+(Math.random()-.5)*.004}:null,
+  customer:{name:pick(FIRST)+' '+String.fromCharCode(65+Math.floor(Math.random()*26))+'.'},note:Math.random()<.15?pick(['2. etasje','Ring på hos Hansen','Dørkode 1234','Bakgården']):'',
   payment:{method:Math.random()<.68?'vipps':'card'}};
 }
 // Returns `days` of finished and in-progress demo orders, oldest first (no id/number).
@@ -272,12 +297,13 @@ function demoHistory(M,overrides,settings,tz,days=21,now=Date.now(),drivers=[]){
 
 // ---- storage records (Base44 entity rows) ----
 const toRecord=o=>({number:o.number,status:o.status,mode:o.mode,address:o.address,lines:o.lines,extras:o.extras,subtotal:o.subtotal,fee:o.fee,
+ customer_name:o.customer?.name||'',customer_phone:o.customer?.phone||'',note:o.note||'',
  total:o.total,payment_method:o.payment.method,times:o.times,placed_at:o.createdAt,demo:!!o.demo,dest:o.dest||null,driver:o.driver||null,pos:o.pos||null});
 const fromRecord=r=>({id:r.id,number:r.number,status:r.status,mode:r.mode,address:r.address||'',lines:r.lines||[],extras:r.extras||[],
  subtotal:r.subtotal,fee:r.fee,total:r.total,payment:{method:r.payment_method},times:r.times||{},createdAt:r.placed_at,demo:!!r.demo,
- dest:r.dest||null,driver:r.driver||null,pos:r.pos||null});
+ dest:r.dest||null,driver:r.driver||null,pos:r.pos||null,customer:{name:r.customer_name||'',phone:r.customer_phone||''},note:r.note||''});
 
-const M={toRecord,fromRecord,TARGET_MIN,FLOW,ACTIVE,DEFAULT_SETTINGS,SHOP,STAFF_ROLES,DEMO_STAFF,Invalid,toPos,catalog,publicMenu,patchOverride,patchSettings,
+const M={toRecord,fromRecord,TARGET_MIN,FLOW,ACTIVE,DEFAULT_SETTINGS,SHOP,STAFF_ROLES,DEMO_STAFF,Invalid,toPos,distKm,normPhone,catalog,publicMenu,patchOverride,patchSettings,
  priceOrder,transition,publicOrder,patchStaff,staffView,staffBoard,staffAct,driverPosUpdates,local,stats,statsSince,randomBody,demoHistory};
 /*END*/
 if(typeof module!=='undefined'&&module.exports)module.exports=M;else root.PP_CORE=M;

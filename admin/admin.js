@@ -169,6 +169,8 @@ function ticket(o,color){
   <div class="ticket-top"><span class="no">${esc(o.number.replace('PP-','#'))}</span><span class="timer" data-since="${o.createdAt}"></span></div>
   <div class="meta"><span class="tag">${o.mode==='delivery'?'🛵 Delivery':'🛍️ Pickup'}</span>${o.demo?'<span class="tag">Demo</span>':''}
    <span>${esc(clock(o.createdAt))}${o.address?' · '+esc(o.address):''}</span></div>
+  ${o.customer?.name||o.customer?.phone?`<div class="cust-row">👤 <b>${esc(o.customer.name)}</b>${o.customer.phone?` · <a href="tel:${esc(o.customer.phone.replace(/\s/g,''))}">${esc(o.customer.phone)}</a>`:''}</div>`:''}
+  ${o.note?`<div class="note-row">💬 ${esc(o.note)}</div>`:''}
   ${driverRow(o)}
   <ul>${items.map((l,i)=>`<li><label><input type="checkbox" data-check="${o.id}" data-i="${i}" ${checks[i]?'checked':''}>
    <span>${esc(lineText(l))}${lineSub(l)?`<small>${esc(lineSub(l))}</small>`:''}</span></label></li>`).join('')}</ul>
@@ -198,12 +200,13 @@ function renderOrders(){
   <section class="card"><div class="toolbar">
    <div class="seg" role="group" aria-label="Status">${[['all','All'],['active','In progress'],['done','Done'],['cancelled','Cancelled']].map(([k,l])=>
     `<button data-act="order-filter" data-f="${k}" aria-pressed="${S.orderFilter===k}">${l}</button>`).join('')}</div>
-   <input type="search" id="order-q" placeholder="Search order number or address" value="${esc(S.orderQuery)}" aria-label="Search orders"></div>
+   <input type="search" id="order-q" placeholder="Search order, name, phone or address" value="${esc(S.orderQuery)}" aria-label="Search orders"></div>
   ${!list?'':!list.orders.length?'<div class="empty">No orders match</div>':`<div class="table-wrap"><table>
-   <thead><tr><th>Order</th><th>Placed</th><th>Type</th><th>Items</th><th>Paid with</th><th>Driver</th><th class="num">Total</th><th class="num">To door</th><th>Status</th></tr></thead>
+   <thead><tr><th>Order</th><th>Placed</th><th>Customer</th><th>Type</th><th>Items</th><th>Paid with</th><th>Driver</th><th class="num">Total</th><th class="num">To door</th><th>Status</th></tr></thead>
    <tbody>${list.orders.map(o=>{const door=o.status==='done'?(o.times.done-o.createdAt)/60000:null;
     return`<tr><td><b>${esc(o.number)}</b>${o.demo?' <span class="tag">Demo</span>':''}</td>
      <td>${esc(dayLabel(dayKey(o.createdAt)))} ${esc(clock(o.createdAt))}</td>
+     <td>${esc(o.customer?.name||'–')}${o.customer?.phone?`<br><span style="color:var(--muted)">${esc(o.customer.phone)}</span>`:''}</td>
      <td>${o.mode==='delivery'?'Delivery':'Pickup'}${o.address?`<br><span style="color:var(--muted)">${esc(o.address)}</span>`:''}</td>
      <td class="items">${esc(itemsText(o))}</td><td>${o.payment.method==='vipps'?'Vipps':'Card'}</td><td>${o.driver?esc(o.driver.name):'–'}</td>
      <td class="num"><b>${esc(kr(o.total))}</b></td><td class="num">${door==null?'–':door.toFixed(0)+' min'}</td>
@@ -262,7 +265,8 @@ function renderSettings(){
    <form class="form" id="settings-form">
     <label class="switch" style="justify-self:start"><input type="checkbox" name="open" ${s.open?'checked':''}><span>${s.open?'Taking orders':'Paused — customers cannot order'}</span></label>
     <label>Message shown while paused<input type="text" name="pauseMessage" maxlength="120" value="${esc(s.pauseMessage)}" placeholder="e.g. Back at 17:00"></label>
-    <label>Delivery fee (kr)<input type="number" name="deliveryFee" min="0" max="1000" step="1" value="${s.deliveryFee}"></label>
+    <label>Delivery fee (kr) <span class="hint">charged on every delivery order, no minimum order</span><input type="number" name="deliveryFee" min="0" max="1000" step="1" value="${s.deliveryFee}"></label>
+    <label>Delivery area (km from the shop) <span class="hint">addresses further away are refused</span><input type="number" name="deliveryRadiusKm" min="0.5" max="50" step="0.5" value="${s.deliveryRadiusKm??5}"></label>
     <label>Promised delivery time (minutes)<input type="number" name="etaMin" min="0" max="180" step="1" value="${s.etaMin}"></label>
     <label>Promised pickup time (minutes)<input type="number" name="pickupMin" min="0" max="180" step="1" value="${s.pickupMin}"></label>
     <div class="actions"><button class="btn primary" type="submit">Save</button></div></form></section>
@@ -377,7 +381,7 @@ document.addEventListener('submit',guard(async e=>{
   S.staffEdit=null;await loadStaff();toast(id?'Saved':r.invited?`${r.name} added and invited`:`${r.name} added`)}
  else if(e.target.id==='settings-form'){const f=new FormData(e.target);
   S.settings=await api('PATCH','settings',{open:f.get('open')==='on',pauseMessage:f.get('pauseMessage'),
-   deliveryFee:Number(f.get('deliveryFee')),etaMin:Number(f.get('etaMin')),pickupMin:Number(f.get('pickupMin'))});
+   deliveryFee:Number(f.get('deliveryFee')),deliveryRadiusKm:Number(f.get('deliveryRadiusKm')),etaMin:Number(f.get('etaMin')),pickupMin:Number(f.get('pickupMin'))});
   toast('Settings saved');render()}}));
 $('store-btn').addEventListener('click',guard(async()=>{
  const open=S.settings?.open!==false;

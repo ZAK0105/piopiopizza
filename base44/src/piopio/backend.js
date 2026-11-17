@@ -61,7 +61,7 @@ async function adminApi(method, url, body) {
     const f = q.get('filter') || 'active', text = (q.get('q') || '').toLowerCase(), limit = Math.min(+q.get('limit') || 200, 500);
     let list = f === 'active' ? await activeOrders()
       : rows(await Order.filter(f === 'done' || f === 'cancelled' ? { status: f } : {}, '-placed_at', 500)).map(C.fromRecord);
-    if (text) list = list.filter((o) => o.number.toLowerCase().includes(text) || o.address.toLowerCase().includes(text));
+    if (text) list = list.filter((o) => [o.number, o.address, o.customer?.name, o.customer?.phone?.replace(/\s/g, '')].some((v) => v && v.toLowerCase().includes(text)));
     if (f === 'active') for (const o of list) known.set(o.id, seenKey(o));
     const total = text || f !== 'all' ? list.length : await countOrders();
     return { total, orders: list.slice(0, limit) };

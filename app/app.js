@@ -5,14 +5,11 @@ const {PIZZAS:MENU,SIZES,TOPPINGS,TOP_PRICE,MAX_TOPS,SIDES,DIPS,DESSERTS,BRANDS,
 const FILTERS=[['all','Alle'],['veggie','🌱 Vegetar'],['spicy','🌶️ Sterk'],['meat','🥩 Kjøtt']];
 const bottle=(b,z)=>`<span class="bottle${z==='15'?' big':''}" style="--c:${b.c}${b.l?`;--l:${b.l}`:''}"></span>`;
 DRINKS.forEach(d=>{d.icon=bottle(BRANDS.find(b=>b.id===d.brand),d.size)});
-// Saved example addresses, each with a point so the driver can be shown heading there
-const ADDRESSES=[{id:'home',icon:'🏠',name:'Hjem',line:'Toftes gate 20',eta:17,lat:59.9257,lng:10.7591},
- {id:'work',icon:'💼',name:'Jobb',line:'Karl Johans gate 25',eta:21,lat:59.9130,lng:10.7389},
- {id:'gym',icon:'🏋️',name:'Trening',line:'Markveien 35',eta:14,lat:59.9236,lng:10.7563}];
-const SHOP=window.PP_CORE?.SHOP||{name:'Pio Pio Grünerløkka',address:'Thorvald Meyers gate 12',lat:59.9226,lng:10.7590};
+const C=window.PP_CORE; // shared order rules: phone format, distances, the shop
+const SHOP=C.SHOP;
 const TOTAL=1200;
 // Live values: replaced by the server's when the app is served by it (see syncMenu); defaults keep the standalone demo working
-let FEE=PIOPIO_MENU.DELIVERY_FEE,LIVE=false,STORE={open:true,pauseMessage:'',pickupMin:12};
+let FEE=PIOPIO_MENU.DELIVERY_FEE,LIVE=false,STORE={...C.DEFAULT_SETTINGS};
 const STEPS=[
  {label:'Mottatt',sub:'Kjøkkenet har bestillingen din',color:'#3B82F6',tint:'rgba(59,130,246,.14)',fg:'#93C5FD',at:0},
  {label:'I ovnen',sub:'Steinovn · 90 sekunder på 450 °C',color:'#F59E0B',tint:'rgba(245,158,11,.14)',fg:'#FCD34D',at:90},
@@ -36,7 +33,10 @@ const S={
  lines:saved.lines||[{id:'piopio',size:'M',tops:[],qty:1}], // pizza lines (same pizza can have several configs)
  extras:saved.extras||{},
  mode:saved.mode||'delivery',
- addr:byId(ADDRESSES,saved.addr)?saved.addr:'home',
+ address:saved.address||null, // {line, post, lat, lng} picked from the address register
+ recent:saved.recent||[],      // the last few addresses used, newest first
+ customer:saved.customer||{name:'',phone:''},
+ note:saved.note||'',          // message for the driver: floor, door code …
  screen:saved.screen||'menu',
  virt:saved.virt||0,
  order:saved.order||null, // the order being tracked; has id/number/status when placed through the server
@@ -46,7 +46,14 @@ const S={
  sheet:null, // {type:'pizza',id,size,tops,qty} | {type:'cart'} | {type:'address'} | {type:'pay'}
  toast:null};
 for(const o of[S,S.last])for(const id of Object.keys(o.extras))if(!byId(EXTRAS,id))delete o.extras[id];
-const save=()=>{const{lines,extras,mode,addr,screen,virt,last,order}=S;try{localStorage.setItem(KEY,JSON.stringify({lines,extras,mode,addr,screen,virt,last,order}))}catch(e){}};
+const save=()=>{const{lines,extras,mode,address,recent,customer,note,screen,virt,last,order}=S;
+ try{localStorage.setItem(KEY,JSON.stringify({lines,extras,mode,address,recent,customer,note,screen,virt,last,order}))}catch(e){}};
+// ---------- delivery address & contact details ----------
+const kmTo=a=>C.distKm(SHOP,a);
+const inRange=a=>!!a&&kmTo(a)<=STORE.deliveryRadiusKm;
+const kmText=k=>k<1?Math.round(k*1000)+' m':k.toFixed(1).replace('.',',')+' km';
+const etaFor=a=>STORE.etaMin+Math.max(0,Math.round((kmTo(a)-1.5)*3)); // a few minutes more per km beyond the neighbourhood
+const detailsOk=()=>S.customer.name.trim().length>=2&&!!C.normPhone(S.customer.phone);
 
 const unitPrice=l=>byId(MENU,l.id).price+byId(SIZES,l.size).add+l.tops.length*TOP_PRICE;
 const sameCfg=(a,b)=>a.id===b.id&&a.size===b.size&&a.tops.join()===b.tops.join();
@@ -78,18 +85,18 @@ function removeOne(id){ // newest config of this pizza goes first
 function bumpExtra(id,d){const q=Math.max(0,(S.extras[id]||0)+d);if(q)S.extras[id]=q;else delete S.extras[id];if(d>0)bumpBag()}
 
 let toastTimer;
-function showToast(text,undo){clearTimeout(toastTimer);S.toast={text,undo};toastTimer=setTimeout(()=>{S.toast=null;renderToast()},2600)}
+function showToast(text,undo,warn){clearTimeout(toastTimer);S.toast={text,undo,warn};toastTimer=setTimeout(()=>{S.toast=null;renderToast()},2600)}
 let bagBump=false;const bumpBag=()=>{bagBump=true};
 
 // ---------- render: menu ----------
 let lastFilter=null;
 function renderMenu(){
- const t=totals(),a=byId(ADDRESSES,S.addr);
- $('eta-text').textContent=S.mode==='delivery'?`⚡ ${a.eta} min`:`⚡ Klar om ${STORE.pickupMin} min`;
+ const t=totals(),a=S.address;
+ $('eta-text').textContent=S.mode==='delivery'?`⚡ ${a&&inRange(a)?etaFor(a):STORE.etaMin} min`:`⚡ Klar om ${STORE.pickupMin} min`;
  $('fee-label').textContent=`(${FEE}kr)`;
- $('address-btn').innerHTML=S.mode==='delivery'
-  ?`📍 Lever til <b>${esc(a.line)}</b> <span class="chev">▼</span>`
-  :`🛍️ Hent hos <b>${esc(SHOP.name)}</b>`;
+ $('address-btn').innerHTML=S.mode!=='delivery'?`🛍️ Hent hos <b>${esc(SHOP.name)}</b>`
+  :!a?`📍 <b>Legg til leveringsadresse</b> <span class="chev">▼</span>`
+  :`📍 Lever til <b>${esc(a.line)}</b>${inRange(a)?'':' <span class="out">· utenfor leveringsområdet</span>'} <span class="chev">▼</span>`;
  $('address-btn').disabled=S.mode!=='delivery';
 
  const inProgress=S.order&&(S.order.id?!['done','cancelled'].includes(S.order.status):S.virt<TOTAL);
@@ -139,12 +146,13 @@ function renderMenu(){
  const seg=document.querySelector('.seg');seg.classList.toggle('pickup',S.mode==='pickup');
  seg.querySelectorAll('button').forEach(b=>b.setAttribute('aria-selected',b.dataset.mode===S.mode));
  $('cta').disabled=empty||!STORE.open;$('card-btn').disabled=empty||!STORE.open;
- $('cta').textContent=!STORE.open?(STORE.pauseMessage||'Kjøkkenet har pause — tilbake snart'):empty?'Legg til en pizza for å bestille':`⚡ Betal med Vipps • ${t.total} kr`;
+ $('cta').textContent=!STORE.open?(STORE.pauseMessage||'Kjøkkenet har pause — tilbake snart'):empty?'Legg til en pizza for å bestille'
+  :S.mode==='delivery'&&a&&!inRange(a)?'Utenfor leveringsområdet — velg en annen adresse':`⚡ Betal med Vipps • ${t.total} kr`;
  renderToast();
 }
 function renderToast(){
  const el=$('toast');el.classList.toggle('on',!!S.toast);
- if(S.toast)el.innerHTML=`<span>✓ ${esc(S.toast.text)}</span>${S.toast.undo?'<button data-act="undo">Angre</button>':''}`;
+ if(S.toast)el.innerHTML=`<span>${S.toast.warn?'':'✓ '}${esc(S.toast.text)}</span>${S.toast.undo?'<button data-act="undo">Angre</button>':''}`;
 }
 
 // ---------- render: sheets ----------
@@ -152,6 +160,8 @@ function renderSheet(){
  const sh=S.sheet;$('overlay').classList.toggle('on',!!sh);$('sheet').classList.toggle('on',!!sh);
  if(!sh)return;
  const body=$('sheet-body');
+ // sheets with text inputs are drawn once per opening, so typing is never interrupted
+ if(sh!==renderSheet.cur){body.innerHTML='';renderSheet.cur=sh}
  if(sh.type==='pizza'){
   const m=byId(MENU,sh.id),unit=unitPrice(sh);
   body.innerHTML=`<div class="detail-img"><img src="${img(m.id)}" alt=""></div>
@@ -167,19 +177,38 @@ function renderSheet(){
  }else if(sh.type==='cart'){
   const t=totals();
   if(!t.items){S.sheet=null;return renderSheet()}
-  body.innerHTML=`<h2 class="sh-title">Handlekurven din</h2><div class="sh-sub">${S.mode==='delivery'?'Levering til '+esc(byId(ADDRESSES,S.addr).line):'Hentes på Grünerløkka'}</div>
+  body.innerHTML=`<h2 class="sh-title">Handlekurven din</h2><div class="sh-sub">${S.mode==='delivery'?(S.address?'Levering til '+esc(S.address.line):'Levering — adressen velger du før betaling'):'Hentes på Grünerløkka'}</div>
    <div style="margin-top:8px">${S.lines.map((l,i)=>`<div class="row"><div class="thumb"><img src="${img(l.id)}" alt=""></div>
      <div class="info"><b>${byId(MENU,l.id).name}</b><span>${esc(lineDesc(l))} · ${unitPrice(l)} kr</span></div>
      <div class="stepper"><button data-act="line" data-i="${i}" data-d="-1" aria-label="Færre">−</button><span>${l.qty}</span><button class="plus" data-act="line" data-i="${i}" data-d="1" aria-label="Flere">+</button></div></div>`).join('')}
     ${EXTRAS.filter(e=>S.extras[e.id]).map(e=>`<div class="row"><div class="thumb">${e.icon||e.em}</div><div class="info"><b>${e.name}</b><span>${e.price} kr</span></div>
      <div class="stepper"><button data-act="cart-extra" data-id="${e.id}" data-d="-1" aria-label="Færre">−</button><span>${S.extras[e.id]}</span><button class="plus" data-act="cart-extra" data-id="${e.id}" data-d="1" aria-label="Flere">+</button></div></div>`).join('')}</div>
    <div class="totals"><span>Delsum</span><b>${t.sub} kr</b>${t.fee?`<span>Levering</span><b>${t.fee} kr</b>`:''}<span>Totalt</span><b>${t.total} kr</b></div>
+   ${detailsOk()?`<button class="who" data-act="open-details"><span>👤 ${esc(S.customer.name)} · ${esc(C.normPhone(S.customer.phone))}</span><span class="view-link">Endre</span></button>`:''}
    <div class="sheet-foot"><button class="cta" data-act="pay">⚡ Betal med Vipps • ${t.total} kr</button>
     <button class="card-btn" data-act="open-card" aria-label="Betal med bank- eller kredittkort"><span>💳</span>Kort</button></div>`;
  }else if(sh.type==='address'){
-  body.innerHTML=`<h2 class="sh-title">Lever til</h2><div class="sh-sub">Leveringstiden følger avstanden fra ovnen.</div><div style="margin-top:16px">
-   ${ADDRESSES.map(a=>`<button class="addr" aria-pressed="${S.addr===a.id}" data-act="pick-addr" data-id="${a.id}"><span style="font-size:22px">${a.icon}</span>
-    <span class="info"><b>${a.name}</b><span>${esc(a.line)}</span></span><span class="eta">${a.eta} min</span></button>`).join('')}</div>`;
+  // The search box is drawn once and keeps focus; only the list under it changes as the customer types
+  if(!$('addr-q')){body.innerHTML=`<h2 class="sh-title">Hvor skal vi levere?</h2>
+   <div class="sh-sub">Vi leverer innen ${String(STORE.deliveryRadiusKm).replace('.',',')} km fra ${esc(SHOP.name)}. Levering ${FEE} kr per bestilling.</div>
+   <div class="field"><label for="addr-q">Adresse</label><input id="addr-q" type="search" autocomplete="street-address" placeholder="Gate og nummer, f.eks. Toftes gate 20" enterkeyhint="search"></div>
+   <div id="addr-hits" class="hits" aria-live="polite"></div>`;
+   $('addr-q').value=sh.q||'';setTimeout(()=>$('addr-q')?.focus(),300)}
+  renderHits();
+ }else if(sh.type==='details'){
+  if(!$('cu-name')){body.innerHTML=`<h2 class="sh-title">Dine opplysninger</h2><div class="sh-sub">Så kjøkkenet og budet kan nå deg. Vi husker dem på denne telefonen.</div>
+   <div class="field"><label for="cu-name">Navn</label><input id="cu-name" autocomplete="name" maxlength="60" enterkeyhint="next"></div>
+   <div class="field"><label for="cu-phone">Mobilnummer</label><input id="cu-phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="412 34 567" maxlength="20" enterkeyhint="next"></div>
+   <div id="cu-where"></div>
+   <div class="field" id="f-note"><label for="cu-note">Beskjed til budet <span class="soft">(valgfritt)</span></label><input id="cu-note" maxlength="200" placeholder="Etasje, dørkode, ringeklokke …" enterkeyhint="done"></div>
+   <div class="cc-err" id="cu-err" role="alert"></div>
+   <div class="sheet-foot"><button class="cta" data-act="details-done">${sh.next?'Fortsett til betaling':'Lagre'}</button></div>`;
+   $('cu-name').value=S.customer.name;$('cu-phone').value=S.customer.phone;$('cu-note').value=S.note;
+   if(!S.customer.name)setTimeout(()=>$('cu-name')?.focus(),300)}
+  const a=S.address,del=S.mode==='delivery';
+  $('f-note').hidden=!del;
+  $('cu-where').innerHTML=del?`<button class="who" data-act="open-address"><span>📍 ${a?esc(a.line+', '+a.post):'Velg leveringsadresse'}</span><span class="view-link">${a?'Endre':'Velg'}</span></button>`
+   :`<div class="who"><span>🛍️ Hentes hos ${esc(SHOP.name)}, ${esc(SHOP.address)}</span></div>`;
  }else if(sh.type==='card'){
   // Inputs are not re-rendered while typing; values live in sh and are synced by the input handler
   if(!$('cc-num'))body.innerHTML=`<h2 class="sh-title">Betal med kort</h2><div class="sh-sub">Bank- eller kredittkort · Visa, Mastercard, Amex</div>
@@ -196,6 +225,50 @@ function renderSheet(){
   body.innerHTML=`<div class="vipps"><div class="spinner"></div><div class="sh-title" style="font-size:20px">${sh.method==='card'?'Behandler betalingen …':'Bekreft i Vipps'}</div>
    <div class="sh-sub">${sh.method==='card'?esc(sh.label)+' · ':''}${totals().total} kr · ${S.mode==='delivery'?'Levering':'Hent selv'}</div></div>`;
  }
+}
+
+// ---------- address search ----------
+// Kartverket's open address register covers every address in Norway and returns its position.
+const GEO='https://ws.geonorge.no/adresser/v1/sok';
+const town=s=>s.toLowerCase().replace(/(^|[\s-])\S/g,m=>m.toUpperCase());
+let geoTimer,geoSeq=0;
+function searchAddress(q){
+ const sh=S.sheet;sh.q=q;clearTimeout(geoTimer);const seq=++geoSeq;
+ if(q.trim().length<3){sh.hits=null;sh.state='';return renderHits()}
+ sh.state='loading';
+ geoTimer=setTimeout(async()=>{
+  try{const r=await fetch(`${GEO}?sok=${encodeURIComponent(q.trim())}&fuzzy=true&treffPerSide=8&utkoordsys=4258`);
+   if(!r.ok)throw new Error(r.status);const d=await r.json();
+   if(seq!==geoSeq||S.sheet!==sh)return;
+   sh.hits=(d.adresser||[]).filter(a=>a.representasjonspunkt&&a.adressetekst)
+    .map(a=>({line:a.adressetekst,post:`${a.postnummer} ${town(a.poststed||'')}`.trim(),lat:a.representasjonspunkt.lat,lng:a.representasjonspunkt.lon}));
+   sh.state=sh.hits.length?'':'none';
+  }catch(e){if(seq===geoSeq){sh.hits=null;sh.state='error'}}
+  if(S.sheet===sh)renderHits();
+ },250);
+ renderHits();
+}
+function renderHits(){
+ const sh=S.sheet,el=$('addr-hits');if(!el||sh?.type!=='address')return;
+ const list=sh.hits||(!sh.q?S.recent:[]);
+ const row=(a,i,src)=>{const k=kmTo(a),ok=k<=STORE.deliveryRadiusKm;
+  return`<button class="addr${ok?'':' far'}" data-act="pick-hit" data-src="${src}" data-i="${i}" ${ok?'':'aria-disabled="true"'}>
+   <span class="info"><b>${esc(a.line)}</b><span>${esc(a.post)}</span></span>
+   <span class="eta">${ok?`${kmText(k)} · ${etaFor(a)} min`:`${kmText(k)} · utenfor`}</span></button>`};
+ el.innerHTML=(sh.state==='loading'&&!sh.hits?'<div class="hint">Søker …</div>':'')
+  +(sh.state==='none'?'<div class="hint">Fant ingen adresse. Prøv gatenavn og nummer.</div>':'')
+  +(sh.state==='error'?'<div class="hint">Adressesøket svarer ikke akkurat nå. Prøv igjen om litt.</div>':'')
+  +(!sh.hits&&!sh.q&&S.recent.length?'<div class="sh-label"><span>Tidligere adresser</span></div>':'')
+  +list.map((a,i)=>row(a,i,sh.hits?'hits':'recent')).join('');
+}
+
+// ---------- checkout ----------
+// The customer pays only once we know where to deliver and how to reach them; whatever is missing is asked for first.
+function checkout(method){
+ if(!totals().items||!STORE.open)return;
+ if(S.mode==='delivery'&&!inRange(S.address)){S.sheet={type:'address',next:method,q:''};return}
+ if(!detailsOk()){S.sheet={type:'details',next:method};return}
+ if(method==='card')S.sheet={type:'card',num:'',exp:'',cvc:''};else startPay('vipps');
 }
 
 // ---------- card form ----------
@@ -218,7 +291,11 @@ function syncCard(){
  $('cc-pay').disabled=!c.ok;$('cc-pay').textContent=`Betal ${totals().total} kr`;
 }
 document.addEventListener('input',e=>{
- const sh=S.sheet,el=e.target;if(!sh||sh.type!=='card')return;
+ const sh=S.sheet,el=e.target;if(!sh)return;
+ if(el.id==='addr-q')return searchAddress(el.value);
+ if(el.id==='cu-name'||el.id==='cu-phone'){S.customer[el.id==='cu-name'?'name':'phone']=el.value;$('cu-err').textContent='';return save()}
+ if(el.id==='cu-note'){S.note=el.value;return save()}
+ if(sh.type!=='card')return;
  if(el.id==='cc-num'){const n=digits(el.value).slice(0,cardBrand(digits(el.value))==='Amex'?15:16);
   el.value=sh.num=cardBrand(n)==='Amex'?[n.slice(0,4),n.slice(4,10),n.slice(10)].filter(Boolean).join(' '):n.replace(/(.{4})(?=.)/g,'$1 ')}
  else if(el.id==='cc-exp'){let d=digits(el.value).slice(0,4);if(d.length===1&&d>'1')d='0'+d;
@@ -233,15 +310,16 @@ function startPay(method,label){
  const pause=new Promise(r=>setTimeout(r,1400)); // stands in for the payment provider's confirmation
  const local={lines:S.lines.map(l=>({...l})),extras:{...S.extras},total:totals().total};
  // Only the payment method goes to the server — never card details.
- const a=byId(ADDRESSES,S.addr),dest=S.mode==='delivery'?{lat:a.lat,lng:a.lng}:null;local.dest=dest;
- const body={lines:local.lines,extras:local.extras,mode:S.mode,address:S.mode==='delivery'?a.line:'',dest,payment:{method}};
+ const del=S.mode==='delivery',a=S.address,dest=del?{lat:a.lat,lng:a.lng}:null;local.dest=dest;
+ const body={lines:local.lines,extras:local.extras,mode:S.mode,address:del?`${a.line}, ${a.post}`:'',dest,note:del?S.note.trim():'',
+  customer:{name:S.customer.name.trim(),phone:S.customer.phone},payment:{method}};
  const placed=!LIVE?Promise.resolve(null):B?B.placeOrder(body):fetch('api/orders',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
   .then(async r=>{const b=await r.json().catch(()=>({}));if(!r.ok)throw new Error(b.error||'Kunne ikke sende bestillingen');return b});
  Promise.all([placed,pause]).then(([o])=>{
   S.order=o?{...local,id:o.id,number:o.number,total:o.total,status:o.status,createdAt:o.createdAt,times:o.times,driver:o.driver,pos:o.pos,skew:o.now-Date.now()}:local;
   S.last={lines:local.lines,extras:local.extras};S.lines=[];S.extras={};
   S.sheet=null;S.screen='tracker';S.virt=0;lastTick=Date.now();render();
- }).catch(e=>{S.sheet=null;showToast(e.message,null);render();syncMenu()});
+ }).catch(e=>{S.sheet=null;showToast(e.message,null,true);render();syncMenu()});
 }
 
 // ---------- server sync ----------
@@ -327,7 +405,7 @@ function renderTracker(){
  const time=`${Math.floor(left/60)}:${String(Math.floor(left%60)).padStart(2,'0')}`;
  const driver=live?order.driver:DEMO_DRIVER,first=driver?esc(driver.name.split(' ')[0]):'';
  // where everything is: the shop, the customer, and the driver once they are on the way
- const dest=order.dest||(()=>{const a=byId(ADDRESSES,S.addr);return{lat:a.lat,lng:a.lng}})();
+ const dest=order.dest||(S.address?{lat:S.address.lat,lng:S.address.lng}:{lat:SHOP.lat-.004,lng:SHOP.lng-.006});
  const outF=live?null:stage<2?0:done?1:Math.min(1,(v-600)/600);
  const drv=live?(order.status==='out'?order.pos:null):(stage>=2?lerp(SHOP,dest,outF):null);
  const away=drv?km(drv,dest):null,etaMin=away===null?null:Math.max(1,Math.round(away/.33)); // about 20 km/h through town
@@ -382,7 +460,16 @@ const actions={
  undo:()=>{S.toast?.undo?.();S.toast=null},
  'open-pizza':d=>{if(!byId(MENU,d.id).soldOut)S.sheet={type:'pizza',id:d.id,size:'M',tops:[],qty:1}},
  'open-cart':()=>{S.sheet={type:'cart'}},
- 'open-address':()=>{S.sheet={type:'address'}},
+ 'open-address':()=>{S.sheet={type:'address',next:S.sheet?.next,q:''}},
+ 'open-details':()=>{S.sheet={type:'details'}},
+ 'pick-hit':(d,el)=>{if(el.getAttribute('aria-disabled')){showToast(`Vi leverer bare innen ${String(STORE.deliveryRadiusKm).replace('.',',')} km — velg Hent selv`,null,true);render();return}
+  const a={...(d.src==='hits'?S.sheet.hits:S.recent)[+d.i]},next=S.sheet.next;
+  S.address=a;S.recent=[a,...S.recent.filter(r=>r.line!==a.line||r.post!==a.post)].slice(0,3);
+  S.sheet=null;heroTick();if(next)checkout(next)},
+ 'details-done':()=>{
+  const err=S.customer.name.trim().length<2?'Skriv inn navnet ditt.':!C.normPhone(S.customer.phone)?'Skriv inn et gyldig norsk mobilnummer, f.eks. 412 34 567.':'';
+  if(err){$('cu-err').textContent=err;return}
+  S.customer.phone=C.normPhone(S.customer.phone);const next=S.sheet.next;S.sheet=null;if(next)checkout(next)},
  'close-sheet':()=>{if(S.sheet?.type!=='pay')S.sheet=null},
  size:d=>{S.sheet.size=d.id},
  top:d=>{const t=S.sheet.tops,i=t.indexOf(d.id);if(i>=0)t.splice(i,1);else if(t.length<MAX_TOPS)t.push(d.id);
@@ -391,9 +478,8 @@ const actions={
  'sh-add':()=>{const sh=S.sheet;S.sheet=null;addLine(sh,sh.qty)},
  line:d=>{const l=S.lines[d.i];l.qty+=Number(d.d);if(l.qty<=0)S.lines.splice(d.i,1)},
  'cart-extra':d=>bumpExtra(d.id,Number(d.d)),
- 'pick-addr':d=>{S.addr=d.id;S.sheet=null;heroTick()},
- pay:()=>startPay('vipps'),
- 'open-card':()=>{if(totals().items)S.sheet={type:'card',num:'',exp:'',cvc:''}},
+ pay:()=>checkout('vipps'),
+ 'open-card':()=>checkout('card'),
  'pay-card':()=>{const c=cardCheck(S.sheet);if(c.ok)startPay('card',`${c.brand||'Kort'} •••• ${c.last4}`)},
  back:()=>{S.screen='menu'},
  track:()=>{S.screen='tracker'},
@@ -405,6 +491,9 @@ document.addEventListener('click',e=>{
  fn(el.dataset,el);render();
 });
 document.addEventListener('keydown',e=>{if(e.key==='Enter'&&S.sheet?.type==='card'&&e.target.tagName==='INPUT'){actions['pay-card']();render();return}
+ if(e.key==='Enter'&&S.sheet?.type==='details'&&e.target.tagName==='INPUT'){e.preventDefault();
+  const next={'cu-name':'cu-phone','cu-phone':S.mode==='delivery'?'cu-note':null}[e.target.id];if(next){$(next).focus();return}actions['details-done']();render();return}
+ if(e.key==='Enter'&&e.target.id==='addr-q'){e.preventDefault();const b=document.querySelector('#addr-hits .addr:not(.far)');if(b)b.click();return}
  if(e.key==='Escape'&&S.sheet&&S.sheet.type!=='pay'){S.sheet=null;render()}});
 
 function heroTick(){const n=$('hero-num');n.classList.remove('tick');void n.offsetWidth;n.classList.add('tick')}

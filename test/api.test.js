@@ -8,11 +8,11 @@ let app,base,cookie='';
 const call=async(method,url,body,auth=true)=>{
  const r=await fetch(base+url,{method,headers:{...(body?{'Content-Type':'application/json'}:{}),...(auth&&cookie?{Cookie:cookie}:{})},body:body?JSON.stringify(body):undefined});
  return{status:r.status,body:await r.json().catch(()=>null),headers:r.headers}};
-const order=(over={})=>({mode:'delivery',address:'Markveien 35',payment:{method:'vipps'},
+const order=(over={})=>({mode:'delivery',address:'Markveien 35',dest:{lat:59.9236,lng:10.7563},customer:{name:'Kari Test',phone:'412 34 567'},payment:{method:'vipps'},
  lines:[{id:'piopio',size:'L',tops:['cheese','nduja'],qty:2}],extras:{'coke-15':1,garlic:2},...over});
 
 test.before(async()=>{
- app=createApp({dataDir:fs.mkdtempSync(path.join(os.tmpdir(),'piopio-')),password:'test-password'});
+ app=createApp({dataDir:fs.mkdtempSync(path.join(os.tmpdir(),'piopio-')),password:'test-password',ordersPerMinute:1000});
  await new Promise(r=>app.server.listen(0,r));base='http://127.0.0.1:'+app.server.address().port});
 test.after(()=>app.close());
 
@@ -109,10 +109,11 @@ test('driver flow: claim, pick up, share position, deliver — and the customer 
  const login=await staffCall('login',{pin:'4321'},'');assert.equal(login.status,200);
  staffCookie=login.headers.get('set-cookie').split(';')[0];
  const me=(await staffCall('me')).body.me;assert.equal(me.role,'driver');
- const placed=(await call('POST','/api/orders',order({dest:{lat:59.93,lng:10.76}}),false)).body;
+ const placed=(await call('POST','/api/orders',order({dest:{lat:59.93,lng:10.76},note:'Ring på hos Test'}),false)).body;
  assert.deepEqual((await call('GET','/api/orders/'+placed.id,null,false)).body.dest,{lat:59.93,lng:10.76});
  let board=(await staffCall('board')).body.orders;const o=board.find(x=>x.number===placed.number);
  assert.ok(o,'free delivery is on the driver board');assert.equal(o.address,'Markveien 35');
+ assert.deepEqual(o.customer,{name:'Kari Test',phone:'+47 412 34 567'});assert.equal(o.note,'Ring på hos Test');
  assert.equal((await staffCall('act',{id:o.id,action:'advance'})).status,403,'cannot leave before claiming');
  assert.equal((await staffCall('act',{id:o.id,action:'claim'})).status,200);
  let pub=(await call('GET','/api/orders/'+placed.id,null,false)).body;assert.equal(pub.driver.name,'Kari Nord');assert.equal(pub.pos,null);
@@ -161,4 +162,28 @@ test('demo data brings a sample team and assigns drivers',async()=>{
  const s=(await call('GET','/api/admin/stats?days=7')).body;assert.equal(s.byDriver.filter(d=>/Jonas|Amira|Lars/.test(d.name)).length,3);
  await call('POST','/api/admin/demo',{action:'clear'});
  assert.equal((await call('GET','/api/admin/staff')).body.filter(x=>x.demo).length,0);
+});
+
+test('customers give a name, a Norwegian phone number and an address inside the delivery area',async()=>{
+ const bad=async(o,re)=>{const r=await call('POST','/api/orders',o,false);assert.ok(r.status>=400,JSON.stringify(o));if(re)assert.match(r.body.error,re);return r};
+ await bad(order({customer:{name:'',phone:'41234567'}}),/navn/);
+ await bad(order({customer:{name:'Kari',phone:'1234'}}),/mobilnummer/);
+ await bad(order({customer:{name:'Kari',phone:'+46 70 123 45 67'}}),/mobilnummer/);
+ await bad(order({dest:null}),/listen/);
+ const far=await bad(order({address:'Karl Johans gate 1, Drammen',dest:{lat:59.744,lng:10.204}}),/km unna/);assert.equal(far.status,422);
+ // pickup needs no address, but still a name and number
+ assert.equal((await call('POST','/api/orders',order({mode:'pickup',address:'',dest:null}),false)).status,201);
+ await bad(order({mode:'pickup',address:'',dest:null,customer:{}}),/navn/);
+ // the number is stored tidily and stays out of the customer view
+ const r=await call('POST','/api/orders',order({customer:{name:'  Kari   Test ',phone:'0047 41234567'}}),false);assert.equal(r.status,201);
+ assert.equal(JSON.stringify(r.body).includes('412'),false,'no phone in the public order');
+ const a=(await call('GET','/api/admin/orders?filter=active')).body.orders.find(x=>x.number===r.body.number);
+ assert.deepEqual(a.customer,{name:'Kari Test',phone:'+47 412 34 567'});
+ // a wider radius lets the far address in; every delivery pays the fee
+ await call('PATCH','/api/admin/settings',{deliveryRadiusKm:40});
+ assert.equal((await call('GET','/api/menu')).body.settings.deliveryRadiusKm,40);
+ const ok=await call('POST','/api/orders',order({address:'Drammen',dest:{lat:59.744,lng:10.204},lines:[],extras:{'coke-05':1}}),false);
+ assert.equal(ok.status,201);assert.equal(ok.body.total,39+49);
+ assert.equal((await call('PATCH','/api/admin/settings',{deliveryRadiusKm:0})).status,400);
+ await call('PATCH','/api/admin/settings',{deliveryRadiusKm:5});
 });

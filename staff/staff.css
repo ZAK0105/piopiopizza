@@ -80,3 +80,6 @@ h2{font-size:12px;font-weight:700;letter-spacing:1.2px;text-transform:uppercase;
 .toast{padding:12px 14px;border-radius:12px;background:#fff;color:#000;font-weight:700;font-size:14px;box-shadow:0 10px 30px rgba(0,0,0,.5)}
 .toast.err{background:#7F1D1D;color:#fff}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+.cust{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:8px 0;font-size:14px}
+.cust .btn{min-height:38px;padding:0 12px;flex:none}
+.note-box{margin:8px 0;padding:10px 12px;border-radius:12px;background:rgba(250,178,25,.12);color:#FCD34D;font-size:14px;font-weight:700}

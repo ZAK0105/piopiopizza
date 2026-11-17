@@ -13,7 +13,7 @@ const ROOT=path.join(__dirname,'..');
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8',
  '.png':'image/png','.svg':'image/svg+xml','.json':'application/json','.ico':'image/x-icon','.webmanifest':'application/manifest+json'};
 
-function createApp({dataDir=process.env.DATA_DIR||path.join(ROOT,'data'),password=process.env.ADMIN_PASSWORD}={}){
+function createApp({dataDir=process.env.DATA_DIR||path.join(ROOT,'data'),password=process.env.ADMIN_PASSWORD,ordersPerMinute=20}={}){
  const db=require('./db.js').open(dataDir);
  const generated=!password;if(generated)password=crypto.randomBytes(9).toString('base64url');
  const sessions=new Map(); // token -> expiry
@@ -73,7 +73,7 @@ function createApp({dataDir=process.env.DATA_DIR||path.join(ROOT,'data'),passwor
   // ---- public ----
   if(p==='/api/menu'&&m==='GET')return send(res,200,L.publicMenu(db));
   if(p==='/api/orders'&&m==='POST'){
-   if(limited('order:'+ip(req),20,60000))throw new Invalid('Too many orders — try again in a minute',429);
+   if(limited('order:'+ip(req),ordersPerMinute,60000))throw new Invalid('Too many orders — try again in a minute',429);
    const o=L.createOrder(db,await readJson(req));broadcast('order',{type:'new',order:o});
    return send(res,201,L.publicOrder(o))}
   if((x=/^\/api\/orders\/([0-9a-f]{24})$/.exec(p))&&m==='GET'){
@@ -122,7 +122,7 @@ function createApp({dataDir=process.env.DATA_DIR||path.join(ROOT,'data'),passwor
    let list=db.data.orders;
    if(f==='active')list=list.filter(o=>L.ACTIVE.includes(o.status));
    else if(f==='done'||f==='cancelled')list=list.filter(o=>o.status===f);
-   if(q)list=list.filter(o=>o.number.toLowerCase().includes(q)||o.address.toLowerCase().includes(q));
+   if(q)list=list.filter(o=>[o.number,o.address,o.customer?.name,o.customer?.phone?.replace(/\s/g,'')].some(v=>v&&v.toLowerCase().includes(q)));
    return send(res,200,{total:list.length,orders:list.slice(-limit).reverse()})}
   if((x=/^\/api\/admin\/orders\/([0-9a-f]{24})$/.exec(p))&&m==='PATCH'){
    const b=await readJson(req);

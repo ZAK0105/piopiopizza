@@ -58,9 +58,14 @@ function header(){
 }
 const lineSub=l=>l.size?[SIZE[l.size]||l.size,...(l.tops||[]).map(t=>'+ '+(window.PIOPIO_MENU?.TOPPINGS.find(x=>x.id===t)?.name||t))].join(' · '):'';
 const items=o=>`<ul class="items">${[...o.lines,...o.extras].map(l=>`<li>${l.qty}× ${esc(l.name)}${lineSub(l)?`<small>${esc(lineSub(l))}</small>`:''}</li>`).join('')}</ul>`;
+const tel=p=>p.replace(/\s/g,'');
+// who ordered, with a call button, and the customer's note for the driver
+const customer=o=>o.customer?.name||o.customer?.phone?`<div class="cust"><span>👤 <b>${esc(o.customer.name||'Kunde')}</b>${o.customer.phone?` · ${esc(o.customer.phone)}`:''}</span>
+ ${o.customer.phone?`<a class="btn" href="tel:${esc(tel(o.customer.phone))}">📞 Ring</a>`:''}</div>`:'';
+const note=o=>o.note?`<div class="note-box">💬 ${esc(o.note)}</div>`:'';
 const chip=(o,text)=>`<span class="chip" style="--c:${COLOR[o.status]}"><i></i>${text}</span>`;
 const mapsLink=o=>o.dest?`https://www.google.com/maps/dir/?api=1&destination=${o.dest.lat},${o.dest.lng}`
- :`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(o.address+', Oslo')}`;
+ :`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(o.address)}`;
 function card(o,body){
  return`<article class="card" style="--c:${COLOR[o.status]}">
   <div class="top"><span class="no">${esc(o.number.replace('PP-','#'))}</span><span class="timer" data-since="${o.createdAt}"></span></div>
@@ -77,7 +82,7 @@ function driverCard(o){
   :`<div class="note">The kitchen is on it — you'll see “Picked up” here when it's ready.</div><div class="row"><button class="btn ghost" data-act="release" data-id="${o.id}">Give it back</button></div>`;
  return card(o,`<div class="meta">${chip(o,statusText)}${o.demo?'<span class="tag">Demo</span>':''}${dist!==null?`<span>${dist.toFixed(1)} km from the shop</span>`:''}</div>
   <div class="addr"><span>📍 ${esc(o.address)}</span><a href="${mapsLink(o)}" target="_blank" rel="noopener">Navigate ↗</a></div>
-  ${items(o)}${btns}`);
+  ${note(o)}${mine?customer(o):''}${items(o)}${btns}`);
 }
 function locationPanel(outCount){
  const g=S.geo;
@@ -107,7 +112,7 @@ function kitchenCard(o){
   :o.status==='oven'?`<button class="btn primary big" data-act="advance" data-id="${o.id}">${pick?'Ready for pickup →':'Ready for the driver →'}</button>`
   :o.status==='ready'&&pick?`<button class="btn primary big" data-act="advance" data-id="${o.id}">Picked up ✓</button>`
   :`<div class="note">${o.driver?`${esc(o.driver.name)} is collecting it`:'Waiting for a driver to take it'}</div>`;
- return card(o,`<div class="meta">${chip(o,pick?'🛍️ Pickup':'🛵 Delivery')}${o.demo?'<span class="tag">Demo</span>':''}${o.driver?`<span>Driver: ${esc(o.driver.name)}</span>`:''}</div>${items(o)}${btn}`);
+ return card(o,`<div class="meta">${chip(o,pick?'🛍️ Pickup':'🛵 Delivery')}${o.demo?'<span class="tag">Demo</span>':''}${o.driver?`<span>Driver: ${esc(o.driver.name)}</span>`:''}</div>${pick?customer(o):''}${items(o)}${btn}`);
 }
 function renderKitchen(){
  const by=f=>S.orders.filter(f),sec=(title,list)=>`<h2><span>${title}</span><span>${list.length}</span></h2>${list.map(kitchenCard).join('')||'<div class="empty">Nothing here</div>'}`;
