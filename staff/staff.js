@@ -142,7 +142,8 @@ async function start(){
 }
 
 // ---------- location ----------
-// The phone's GPS runs while the driver has a delivery on the way, and the position is sent at most every 8 seconds.
+// The phone's GPS runs while the driver has a delivery on the way. A new position is sent at most every 8 seconds,
+// and the last one is re-sent every 15 seconds, so customers stay current while the driver stands still.
 function syncGeo(){
  const out=S.me?.role==='driver'?S.orders.filter(o=>o.driver?.id===S.me.id&&o.status==='out'):[];
  if(S.sim){stopWatch();return}
@@ -168,6 +169,7 @@ async function send(pos,force){
  g.sentAt=Date.now();g.sentPos=pos;
  try{await call('location',{lat:pos.lat,lng:pos.lng})}catch(e){if(e.status===401)fail(e)}
 }
+setInterval(()=>{const g=S.geo;if(!S.sim&&g.state==='on'&&g.last&&Date.now()-g.sentAt>=15000)send(g.last,true)},5000);
 // Test mode for admins: a position that moves from the shop to the first customer over three minutes.
 setInterval(()=>{
  if(!S.sim||S.screen!=='main')return;
@@ -191,7 +193,10 @@ async function act(id,action,msg){
  if(S.busy)return;S.busy=true;
  document.querySelectorAll(`[data-id="${id}"]`).forEach(b=>{b.disabled=true});
  try{const r=await call('act',{id,action});
-  if(r.status==='out'&&!S.sim)S.geo.state=S.geo.state==='denied'?'denied':'off'; // the driver just set off: ask for GPS now
+  if(r.status==='out'&&!S.sim){
+   if(S.geo.state==='on'&&S.geo.last)setTimeout(()=>send(S.geo.last,true),1500); // already sharing: put the new order on the map now
+   else if(S.geo.state!=='denied')S.geo.state='off'; // the driver just set off: ask for GPS now
+  }
   if(msg)toast(msg)}
  catch(e){fail(e)}
  finally{S.busy=false;refresh()}
