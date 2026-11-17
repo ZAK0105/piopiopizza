@@ -4,7 +4,7 @@
 
 const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const SHOP=window.PP_CORE?.SHOP||{name:'Pio Pio Grünerløkka',address:'Thorvald Meyers gate 12',lat:59.9226,lng:10.7590};
+const SHOP=window.PP_CORE.SHOP;
 const COLOR={received:'var(--st-received)',oven:'var(--st-oven)',ready:'var(--st-done)',out:'var(--st-out)'};
 const SIZE={S:'Small',M:'Medium',L:'Large'};
 const TARGET_MIN=window.PP_CORE?.TARGET_MIN||20;

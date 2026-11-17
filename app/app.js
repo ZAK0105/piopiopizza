@@ -177,7 +177,7 @@ function renderSheet(){
  }else if(sh.type==='cart'){
   const t=totals();
   if(!t.items){S.sheet=null;return renderSheet()}
-  body.innerHTML=`<h2 class="sh-title">Handlekurven din</h2><div class="sh-sub">${S.mode==='delivery'?(S.address?'Levering til '+esc(S.address.line):'Levering — adressen velger du før betaling'):'Hentes på Grünerløkka'}</div>
+  body.innerHTML=`<h2 class="sh-title">Handlekurven din</h2><div class="sh-sub">${S.mode==='delivery'?(S.address?'Levering til '+esc(S.address.line):'Levering — adressen velger du før betaling'):'Hentes hos '+esc(SHOP.name)}</div>
    <div style="margin-top:8px">${S.lines.map((l,i)=>`<div class="row"><div class="thumb"><img src="${img(l.id)}" alt=""></div>
      <div class="info"><b>${byId(MENU,l.id).name}</b><span>${esc(lineDesc(l))} · ${unitPrice(l)} kr</span></div>
      <div class="stepper"><button data-act="line" data-i="${i}" data-d="-1" aria-label="Færre">−</button><span>${l.qty}</span><button class="plus" data-act="line" data-i="${i}" data-d="1" aria-label="Flere">+</button></div></div>`).join('')}

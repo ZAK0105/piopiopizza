@@ -7,7 +7,8 @@ const TARGET_MIN=20; // the "door in 20" promise
 const FLOW={delivery:['received','oven','ready','out','done'],pickup:['received','oven','ready','done']};
 const ACTIVE=['received','oven','out','ready'];
 const DEFAULT_SETTINGS={open:true,pauseMessage:'',deliveryFee:49,etaMin:18,pickupMin:12,deliveryRadiusKm:5};
-const SHOP={name:'Pio Pio Grünerløkka',address:'Thorvald Meyers gate 12',lat:59.92898,lng:10.75990};
+// The first location: pickup counter, kitchen, and the centre of the delivery area
+const SHOP={name:'Pio Pio Heimdalsgata',address:'Heimdalsgata 33, 0578 Oslo',lat:59.91455,lng:10.76652};
 const STAFF_ROLES=['driver','kitchen'];
 
 class Invalid extends Error{constructor(msg,status=400){super(msg);this.status=status}}
