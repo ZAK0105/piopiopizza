@@ -410,3 +410,5 @@ h3{font-weight:700;font-size:20px}
 @media (prefers-reduced-motion:reduce){*,*::before,*::after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 .mbar-ic{display:none}
 @media (max-width:720px){.mbar-ic{display:inline}}
+.allergens{font-size:13px;color:var(--muted);margin-top:6px}
+.pz-body .allergens{margin-top:0;font-size:12px}

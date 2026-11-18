@@ -9,7 +9,7 @@ const call=async(method,url,body,auth=true)=>{
  const r=await fetch(base+url,{method,headers:{...(body?{'Content-Type':'application/json'}:{}),...(auth&&cookie?{Cookie:cookie}:{})},body:body?JSON.stringify(body):undefined});
  return{status:r.status,body:await r.json().catch(()=>null),headers:r.headers}};
 const order=(over={})=>({mode:'delivery',address:'Markveien 35',dest:{lat:59.9236,lng:10.7563},customer:{name:'Kari Test',phone:'412 34 567'},payment:{method:'vipps'},
- lines:[{id:'piopio',size:'L',tops:['cheese','nduja'],qty:2}],extras:{'coke-15':1,garlic:2},...over});
+ lines:[{id:'piopio',size:'M',tops:['glutenfree'],qty:2}],extras:{'coke-15':1,garlic:2},...over});
 
 test.before(async()=>{
  app=createApp({dataDir:fs.mkdtempSync(path.join(os.tmpdir(),'piopio-')),password:'test-password',ordersPerMinute:1000});
@@ -18,19 +18,19 @@ test.after(()=>app.close());
 
 test('menu is public and lists prices',async()=>{
  const r=await call('GET','/api/menu');assert.equal(r.status,200);
- assert.equal(r.body.items.piopio.price,189);assert.equal(r.body.settings.open,true)});
+ assert.equal(r.body.items.piopio.price,230);assert.equal(r.body.settings.open,true)});
 
 test('order is priced on the server, ignoring client totals',async()=>{
  const r=await call('POST','/api/orders',{...order(),total:1,fee:0});
  assert.equal(r.status,201);
- // 2×(189+60+2×25)=598, cola 59, 2 dips 50, delivery 49
- assert.equal(r.body.total,598+59+50+49);assert.match(r.body.number,/^PP-\d+$/);assert.equal(r.body.status,'received');
+ // 2×(230+59)=578, cola 59, 2 dips 50, delivery 49
+ assert.equal(r.body.total,578+59+50+49);assert.match(r.body.number,/^PP-\d+$/);assert.equal(r.body.status,'received');
  const again=await call('GET','/api/orders/'+r.body.id);assert.equal(again.body.number,r.body.number);
  assert.equal(again.body.address,undefined,'customer view carries no address')});
 
 test('bad orders are rejected',async()=>{
  for(const bad of[order({lines:[],extras:{}}),order({lines:[{id:'nope',size:'M',tops:[],qty:1}]}),order({lines:[{id:'piopio',size:'M',tops:[],qty:-3}]}),
-  order({lines:[{id:'piopio',size:'M',tops:['cheese','nduja','onion','honey'],qty:1}]}),order({address:''}),order({payment:{method:'cash'}}),order({extras:{'coke-15':999}})])
+  order({lines:[{id:'piopio',size:'M',tops:['glutenfree','vegancheese','cheese'],qty:1}]}),order({address:''}),order({payment:{method:'cash'}}),order({extras:{'coke-15':999}})])
   assert.equal((await call('POST','/api/orders',bad)).status,400);
  assert.equal((await call('GET','/api/orders/'+'0'.repeat(24))).status,404)});
 
@@ -58,16 +58,16 @@ test('sold-out items and price changes apply to new orders',async()=>{
  const r=await call('POST','/api/orders',order());assert.equal(r.status,409);assert.match(r.body.error,/utsolgt/);
  await call('PATCH','/api/admin/catalog/piopio',{available:true,price:200});
  assert.equal((await call('GET','/api/menu')).body.items.piopio.price,200);
- assert.equal((await call('POST','/api/orders',order())).body.total,620+59+50+49);
+ assert.equal((await call('POST','/api/orders',order())).body.total,518+59+50+49);
  await call('PATCH','/api/admin/catalog/piopio',{price:null});
- assert.equal((await call('GET','/api/menu')).body.items.piopio.price,189);
+ assert.equal((await call('GET','/api/menu')).body.items.piopio.price,230);
  assert.equal((await call('PATCH','/api/admin/catalog/piopio',{price:-5})).status,400)});
 
 test('pausing the kitchen stops orders',async()=>{
  await call('PATCH','/api/admin/settings',{open:false,pauseMessage:'Back at 17:00'});
  const r=await call('POST','/api/orders',order());assert.equal(r.status,409);assert.equal(r.body.error,'Back at 17:00');
  await call('PATCH','/api/admin/settings',{open:true,deliveryFee:59});
- assert.equal((await call('POST','/api/orders',order())).body.total,598+59+50+59);
+ assert.equal((await call('POST','/api/orders',order())).body.total,578+59+50+59);
  await call('PATCH','/api/admin/settings',{deliveryFee:49})});
 
 test('stats add up and demo data can be loaded and cleared',async()=>{

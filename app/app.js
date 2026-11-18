@@ -53,7 +53,9 @@ const S={
  sheet:null, // {type:'pizza',id,size,tops,qty} | {type:'cart'} | {type:'pay'}
  toast:null};
 for(const o of[S,S.last].filter(Boolean))for(const id of Object.keys(o.extras||{}))if(!byId(EXTRAS,id))delete o.extras[id];
-S.lines=S.lines.filter(l=>byId(MENU,l.id));
+// drop basket lines from an older menu (sizes and toppings that no longer exist)
+const validLine=l=>byId(MENU,l.id)&&byId(SIZES,l.size)&&(l.tops||[]).every(t=>byId(TOPPINGS,t));
+S.lines=S.lines.filter(validLine);if(S.last){S.last.lines=S.last.lines.filter(validLine);if(!S.last.lines.length&&!Object.keys(S.last.extras).length)S.last=null}
 const save=()=>{const{lines,extras,mode,address,recent,customer,note,screen,step,pay,virt,last,order}=S;
  try{localStorage.setItem(KEY,JSON.stringify({lines,extras,mode,address,recent,customer,note,screen,step,pay,virt,last,order}))}catch(e){}};
 // address search and card form: live only while the checkout is open, never stored
@@ -78,7 +80,8 @@ function totals(){
  const fee=S.mode==='delivery'&&items?FEE:0;
  return{pizzas,items,sub,fee,total:sub+fee};
 }
-const lineDesc=l=>{const z=byId(SIZES,l.size);return[z.label+' '+z.cm+' cm',...l.tops.map(t=>'+'+byId(TOPPINGS,t).name)].join(' · ')};
+const lineDesc=l=>{const z=byId(SIZES,l.size);return[SIZES.length>1&&z?z.label+' '+z.cm+' cm':'',...l.tops.map(t=>'+'+byId(TOPPINGS,t).name)].filter(Boolean).join(' · ')||'Vanlig bunn'};
+const pic=id=>img(byId(MENU,id)?.photo||id);
 const summary=o=>[...o.lines.map(l=>`${l.qty}× ${byId(MENU,l.id)?.name||l.name}`),
  ...Object.entries(o.extras).filter(([,q])=>q).map(([id,q])=>`${q}× ${byId(EXTRAS,id)?.name||id}`)].join(', ');
 
@@ -147,14 +150,14 @@ function renderMenu(){
   const q=pizzaQty(m.id);
   return `<article class="pz${q?' has':''}${m.soldOut?' sold':''}" style="${enter?`animation-delay:${i*50}ms`:'animation:none'}">
    <button class="pz-pic" data-act="open-pizza" data-id="${m.id}" aria-label="Tilpass ${m.name}">
-    <img src="${img(m.id)}" alt="${m.name}" loading="lazy">${q?`<span class="qtyb">${q} i kurven</span>`:''}${m.tag?`<span class="tag">${m.tag}</span>`:''}</button>
+    <img src="${pic(m.id)}" alt="" loading="lazy">${q?`<span class="qtyb">${q} i kurven</span>`:''}${m.tag?`<span class="tag">${m.tag}</span>`:''}</button>
    <div class="pz-body">
-    <h4>${m.name}</h4><p>${m.ing}</p>
-    <div class="pz-foot"><span class="price">fra ${kr(m.price+SIZES[0].add)}</span>
+    <h4>${m.name}</h4><p>${m.ing}</p><span class="allergens">Allergener: ${m.allergens}</span>
+    <div class="pz-foot"><span class="price">${kr(m.price)}</span>
      ${m.soldOut?`<button class="btn small" disabled>Utsolgt</button>`
       :q?stepper('pz','data-id="'+m.id+'"',q,m.name)
-      :`<button class="btn primary small" data-act="inc" data-id="${m.id}" aria-label="Legg til ${m.name}, medium ${m.price} kr">Legg til · ${kr(m.price)}</button>`}</div>
-    ${m.soldOut?'':`<button class="link" data-act="open-pizza" data-id="${m.id}">Velg størrelse og topping</button>`}
+      :`<button class="btn primary small" data-act="inc" data-id="${m.id}" aria-label="Legg til ${m.name}, ${m.price} kr">Legg til <span aria-hidden="true">+</span></button>`}</div>
+    ${m.soldOut?'':`<button class="link" data-act="open-pizza" data-id="${m.id}">Glutenfri bunn eller vegansk ost?</button>`}
    </div></article>`}).join(''):`<div class="empty">Ingen pizza i denne kategorien.</div>`;
 
  const card=e=>{const q=S.extras[e.id]||0;
@@ -232,7 +235,7 @@ function drawCheckout(){
 function syncCheckout(){
  const t=totals(),del=S.mode==='delivery',a=S.address;
  $('co-side').innerHTML=`<div class="panel side"><div class="side-h"><h2>Din bestilling</h2><button class="link" data-act="open-cart">Endre</button></div>
-  ${S.lines.map(l=>`<div class="sum-row"><img src="${img(l.id)}" alt=""><span><b>${l.qty}× ${byId(MENU,l.id).name}</b><small>${esc(lineDesc(l))}</small></span><b>${kr(l.qty*unitPrice(l))}</b></div>`).join('')}
+  ${S.lines.map(l=>`<div class="sum-row"><img src="${pic(l.id)}" alt=""><span><b>${l.qty}× ${byId(MENU,l.id).name}</b><small>${esc(lineDesc(l))}</small></span><b>${kr(l.qty*unitPrice(l))}</b></div>`).join('')}
   ${EXTRAS.filter(e=>S.extras[e.id]).map(e=>`<div class="sum-row"><span class="em">${e.icon||e.em}</span><span><b>${S.extras[e.id]}× ${e.name}</b></span><b>${kr(S.extras[e.id]*e.price)}</b></div>`).join('')}
   <div class="totals"><span>Delsum</span><b>${kr(t.sub)}</b><span>${del?'Levering':'Hent selv'}</span><b>${del?kr(t.fee):'0 kr'}</b><span class="tot">Totalt</span><b class="tot">${kr(t.total)}</b></div>
   <p class="hint-sm">${del?`⏱ Levert på ca. ${a&&inRange(a)?etaFor(a):STORE.etaMin} min`:`⏱ Klar til henting på ca. ${STORE.pickupMin} min`}</p></div>`;
@@ -265,11 +268,12 @@ function renderSheet(){
  const body=$('sheet-body');
  if(sh.type==='pizza'){
   const m=byId(MENU,sh.id),unit=unitPrice(sh);
-  body.innerHTML=`<div class="detail-img"><img src="${img(m.id)}" alt=""></div>
+  body.innerHTML=`<div class="detail-img"><img src="${pic(m.id)}" alt=""></div>
    <h2 class="sh-title">${m.name} ${m.tag?`<span class="tag">${m.tag}</span>`:''}</h2><p class="sh-sub">${m.ing}</p>
-   <div class="sh-label"><span>Størrelse</span></div>
-   <div class="opts sizes">${SIZES.map(z=>`<button class="opt" aria-pressed="${sh.size===z.id}" data-act="size" data-id="${z.id}">${z.label}<small>${z.cm} cm · ${kr(m.price+z.add)}</small></button>`).join('')}</div>
-   <div class="sh-label"><span>Ekstra topping · +${kr(TOP_PRICE)}</span><span>${sh.tops.length}/${MAX_TOPS}</span></div>
+   ${m.allergens?`<p class="allergens">Allergener: ${m.allergens}</p>`:''}
+   ${SIZES.length>1?`<div class="sh-label"><span>Størrelse</span></div>
+   <div class="opts sizes">${SIZES.map(z=>`<button class="opt" aria-pressed="${sh.size===z.id}" data-act="size" data-id="${z.id}">${z.label}<small>${z.cm} cm · ${kr(m.price+z.add)}</small></button>`).join('')}</div>`:''}
+   <div class="sh-label"><span>Tillegg · +${kr(TOP_PRICE)} per valg</span><span>${sh.tops.length}/${MAX_TOPS}</span></div>
    <div class="opts tops">${TOPPINGS.map(tp=>{const on=sh.tops.includes(tp.id);
     return `<button class="opt" aria-pressed="${on}" data-act="top" data-id="${tp.id}" ${!on&&sh.tops.length>=MAX_TOPS?'disabled':''}>${tp.name}<small>${on?'✓ valgt':'+ '+kr(TOP_PRICE)}</small></button>`}).join('')}</div>
    <div class="sheet-foot">${stepper('sh-qty','',sh.qty,m.name)}
@@ -281,7 +285,7 @@ function renderSheet(){
   // a few easy add-ons the basket does not have yet
   const ups=['garlicbread','fries','coke-15','tiramisu','garlic','pepsimax-05'].map(id=>byId(EXTRAS,id)).filter(e=>e&&!e.soldOut&&!S.extras[e.id]).slice(0,3);
   body.innerHTML=`<h2 class="sh-title">Handlekurven</h2><p class="sh-sub">Steg 1 av 3 · ${t.items} ${t.items===1?'vare':'varer'}</p>
-   <div class="cart-rows">${S.lines.map((l,i)=>`<div class="row"><img class="thumb" src="${img(l.id)}" alt="">
+   <div class="cart-rows">${S.lines.map((l,i)=>`<div class="row"><img class="thumb" src="${pic(l.id)}" alt="">
      <div class="info"><b>${byId(MENU,l.id).name}</b><span>${esc(lineDesc(l))} · ${kr(unitPrice(l))}</span></div>
      ${stepper('line','data-i="'+i+'"',l.qty,byId(MENU,l.id).name)}</div>`).join('')}
     ${EXTRAS.filter(e=>S.extras[e.id]).map(e=>`<div class="row"><span class="thumb em">${e.icon||e.em}</span><div class="info"><b>${e.name}</b><span>${kr(e.price)}</span></div>

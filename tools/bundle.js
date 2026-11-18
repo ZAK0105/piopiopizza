@@ -3,7 +3,7 @@
 const fs=require('fs');const path=require('path');
 const app=path.join(__dirname,'..','app'),read=f=>fs.readFileSync(path.join(app,f),'utf8');
 const menu=require(path.join(app,'menu.js'));
-const img={};for(const p of menu.PIZZAS)img[p.id]='data:image/png;base64,'+fs.readFileSync(path.join(app,'images',p.id+'.png')).toString('base64');
+const img={};for(const id of new Set(menu.PIZZAS.map(p=>p.photo||p.id)))img[id]='data:image/png;base64,'+fs.readFileSync(path.join(app,'images',id+'.png')).toString('base64');
 const js='window.PP_IMAGES='+JSON.stringify(img)+';\n'+read('app.js');
 const html=read('index.html')
  .replace('<link rel="stylesheet" href="styles.css">',()=>'<style>'+read('styles.css')+'</style>')

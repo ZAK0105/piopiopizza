@@ -16,7 +16,7 @@ const LANES=[{key:'received',title:'Received',color:'var(--st-received)',has:['r
  {key:'out',title:'Out for delivery',color:'var(--st-out)',has:['out']}];
 const ROLE={driver:'Driver',kitchen:'Kitchen'};
 const GROUPS=[['pizzas','Pizzas'],['sides','Sides'],['dips','Dips'],['drinks','Drinks'],['desserts','Desserts']];
-const SIZE={S:'Small',M:'Medium',L:'Large'};
+const SIZE={S:'Small',M:'',L:'Large'}; // the current menu has one size (M), so it is not shown
 
 const S={view:VIEWS.includes(location.hash.slice(1))?location.hash.slice(1):'overview',
  days:7,stats:null,active:new Map(),orders:null,orderFilter:'all',orderQuery:'',catalog:null,settings:null,staff:null,staffEdit:null,staffAuth:'pin',
@@ -150,7 +150,7 @@ function renderOverview(){
 // ---------- kitchen ----------
 const lineText=l=>`${l.qty}× ${l.name}`;
 const topName=t=>window.PIOPIO_MENU?.TOPPINGS.find(x=>x.id===t)?.name||t;
-const lineSub=l=>l.size?[SIZE[l.size],...(l.tops||[]).map(t=>'+ '+topName(t))].join(' · '):'';
+const lineSub=l=>l.size?[SIZE[l.size],...(l.tops||[]).map(t=>'+ '+topName(t))].filter(Boolean).join(' · '):'';
 const drivers=()=>(S.staff||[]).filter(s=>s.role==='driver'&&s.active);
 function driverRow(o){
  if(o.mode!=='delivery')return'';

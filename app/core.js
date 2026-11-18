@@ -247,7 +247,7 @@ const STREETS=[['Thorvald Meyers gate',59.9241,10.7588],['Markveien',59.9236,10.
 // Sample team for exploring the staff features. No e-mail or phone, so nobody real is contacted.
 const DEMO_STAFF=[{name:'Jonas Berg',role:'driver',vehicle:'Electric scooter · EL 4821',pin:'1111'},{name:'Amira Haddad',role:'driver',vehicle:'E-bike',pin:'2222'},
  {name:'Lars Moen',role:'driver',vehicle:'Car · EV 1290',pin:'3333'},{name:'Sofie Lund',role:'kitchen',pin:'4444'},{name:'Mateo Rossi',role:'kitchen',pin:'5555'}];
-const PIZZA_W=[['margherita',22],['piopio',30],['pepperoni',26],['funghi',12],['diavola',16]];
+const PIZZA_W=[['margherita',16],['pepperoni',14],['piopio',14],['diablo',10],['nesodden',6],['mafioso',5],['bovina',4],['funghi',5],['pollo',5],['vegetariana',4],['diavola',6],['quattro',4],['adriatica',2],['prosciutto',2],['chicken',2],['royal',1]];
 // Opening hours 11–22 with a lunch bump and a dinner peak
 const HOUR_W=[[11,3],[12,7],[13,6],[14,3],[15,3],[16,5],[17,9],[18,13],[19,12],[20,9],[21,5],[22,2]];
 const FIRST=['Ingrid','Ola','Nora','Emil','Sara','Jakob','Leah','Filip','Maja','Henrik','Amina','Mohammed','Thea','Lukas','Ida','Ali'];
@@ -255,8 +255,8 @@ function randomBody(M){
  const st=pick(STREETS);
  const lines=[],n=weighted([[1,50],[2,32],[3,13],[4,5]]);
  for(let i=0;i<n;i++){
-  const tops=[];if(Math.random()<.3){const t=[...M.TOPPINGS].sort(()=>Math.random()-.5);tops.push(...t.slice(0,weighted([[1,65],[2,25],[3,10]])).map(x=>x.id))}
-  lines.push({id:weighted(PIZZA_W),size:weighted([['S',12],['M',58],['L',30]]),tops,qty:1});
+  const tops=[];if(Math.random()<.12){const t=[...M.TOPPINGS].sort(()=>Math.random()-.5);tops.push(...t.slice(0,Math.min(M.MAX_TOPS,weighted([[1,85],[2,15]]))).map(x=>x.id))}
+  lines.push({id:weighted(PIZZA_W),size:pick(M.SIZES).id,tops,qty:1});
  }
  const extras={};
  const add=(arr,p)=>{if(Math.random()<p){const e=pick(arr);extras[e.id]=(extras[e.id]||0)+1}};

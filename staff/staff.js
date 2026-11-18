@@ -6,7 +6,7 @@ const $=id=>document.getElementById(id);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const SHOP=window.PP_CORE.SHOP;
 const COLOR={received:'var(--st-received)',oven:'var(--st-oven)',ready:'var(--st-done)',out:'var(--st-out)'};
-const SIZE={S:'Small',M:'Medium',L:'Large'};
+const SIZE={S:'Small',M:'',L:'Large'}; // the current menu has one size (M), so it is not shown
 const TARGET_MIN=window.PP_CORE?.TARGET_MIN||20;
 
 // A host page may provide its own backend (PP_BACKEND.staff/login/logout); the default is this site's /api/staff.
@@ -56,7 +56,7 @@ function header(){
   <div class="who"><b>${esc(m.name)}<span class="role">${m.role==='driver'?'Driver':'Kitchen'}</span></b>
    <small>${S.admin?'<a href="#" data-act="switch">Switch person</a>':'<a href="#" data-act="logout">End shift</a>'}</small></div></header>`;
 }
-const lineSub=l=>l.size?[SIZE[l.size]||l.size,...(l.tops||[]).map(t=>'+ '+(window.PIOPIO_MENU?.TOPPINGS.find(x=>x.id===t)?.name||t))].join(' · '):'';
+const lineSub=l=>l.size?[SIZE[l.size]??l.size,...(l.tops||[]).map(t=>'+ '+(window.PIOPIO_MENU?.TOPPINGS.find(x=>x.id===t)?.name||t))].filter(Boolean).join(' · '):'';
 const items=o=>`<ul class="items">${[...o.lines,...o.extras].map(l=>`<li>${l.qty}× ${esc(l.name)}${lineSub(l)?`<small>${esc(lineSub(l))}</small>`:''}</li>`).join('')}</ul>`;
 const tel=p=>p.replace(/\s/g,'');
 // who ordered, with a call button, and the customer's note for the driver

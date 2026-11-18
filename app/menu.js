@@ -2,16 +2,31 @@
 // Loaded by the customer app (as the PIOPIO_MENU global) and by the server (require).
 (function(root){
 /*BODY*/
+// The real Pio Pio menu (piopio.no, Nesodden and Sagene/Bjølsen). One size; every pizza contains wheat and milk.
+// photo = which picture to show until each pizza has its own.
+const SAN='San Marzano-tomatsaus',FIOR='fior di latte-mozzarella',EVO='extra virgin olivenolje';
 const PIZZAS=[
- {id:'margherita',name:'Margherita',ing:'San Marzano-tomater, fior di latte, basilikum',price:149,cats:['veggie']},
- {id:'piopio',name:'Pio Pio',ing:'Peri-peri-kylling, rødløk, chilihonning',price:189,tag:'Sterk',cats:['spicy','meat']},
- {id:'pepperoni',name:'Pepperoni',ing:'Dobbel pepperoni, mozzarella, oregano',price:179,cats:['meat']},
- {id:'funghi',name:'Funghi',ing:'Sopp, hvitløkskrem, timian, parmesan',price:179,cats:['veggie']},
- {id:'diavola',name:'Diavola',ing:'Sterk salami, nduja, jalapeño',price:189,cats:['spicy','meat']}];
-const SIZES=[{id:'S',label:'Liten',cm:30,add:-20},{id:'M',label:'Medium',cm:33,add:0},{id:'L',label:'Stor',cm:40,add:60}];
-const TOPPINGS=[{id:'cheese',name:'Ekstra ost'},{id:'jalapeno',name:'Jalapeño'},{id:'nduja',name:'Nduja'},
- {id:'mushroom',name:'Sopp'},{id:'onion',name:'Rødløk'},{id:'honey',name:'Chilihonning'}];
-const TOP_PRICE=25,MAX_TOPS=3;
+ {id:'margherita',name:'Margherita',ing:`${SAN}, ${FIOR}, basilikum, ${EVO}`,price:190,cats:['veggie'],photo:'margherita'},
+ {id:'pepperoni',name:'Pepperoni / Vesuvio',ing:`${SAN}, ${FIOR}, pepperoni eller skinke, oregano, ${EVO}`,price:200,cats:['meat'],photo:'pepperoni'},
+ {id:'piopio',name:'Pio Pio',ing:`${SAN}, ${FIOR}, salsiccia, løk, sopp, kapers, pepper, parmesan, ${EVO}`,price:230,tag:'Husets',cats:['meat'],photo:'funghi'},
+ {id:'diablo',name:'Diablo',ing:`${SAN}, ${FIOR}, nduja, fersk chili, ${EVO}`,price:220,tag:'Sterk',cats:['spicy','meat'],photo:'diavola'},
+ {id:'nesodden',name:'Nesodden Special',ing:`${SAN}, ${FIOR}, italiensk skinke, pepperoni picante, basilikum, ${EVO}`,price:220,cats:['spicy','meat'],photo:'pepperoni'},
+ {id:'mafioso',name:'Mafioso Palermo',ing:`${SAN}, ${FIOR}, bacon, pepperoni picante, ${EVO}`,price:220,cats:['spicy','meat'],photo:'diavola'},
+ {id:'bovina',name:'Bovina',ing:`${SAN}, ${FIOR}, marinert biff, løk, sopp, oregano`,price:220,cats:['meat'],photo:'funghi'},
+ {id:'funghi',name:'Funghi',ing:`Spring cream, fior di latte, husets soppmiks, gorgonzola picante, sitron, pepper, ${EVO}`,price:220,cats:['veggie'],photo:'funghi'},
+ {id:'pollo',name:'Pollo Pollo',ing:`Spring cream, ${FIOR}, currymarinert kylling, grønn paprika, løk, ruccola, ${EVO}`,price:220,cats:['meat'],photo:'piopio'},
+ {id:'vegetariana',name:'Vegetariana',ing:`${SAN}, ${FIOR}, sopp, oliven, oregano, ${EVO}`,price:220,cats:['veggie'],photo:'margherita'},
+ {id:'diavola',name:'Diavola',ing:`${SAN}, fior di latte, nduja, løk, chili, ${EVO}`,price:220,tag:'Sterk',cats:['spicy','meat'],photo:'diavola'},
+ {id:'quattro',name:'Quattro Formaggi',ing:`${SAN}, fior di latte, gorgonzola, taleggio, parmesan, ${EVO}`,price:220,cats:['veggie'],photo:'margherita'},
+ {id:'adriatica',name:'Adriatica',ing:`${SAN}, ${FIOR}, ruccola, soltørkede tomater, parmesan, ${EVO}`,price:240,cats:['veggie'],photo:'margherita'},
+ {id:'prosciutto',name:'Prosciutto Mushroom',ing:`${SAN}, ${FIOR}, prosciutto cotto (skinke), sopp, ${EVO}`,price:240,cats:['meat'],photo:'funghi'},
+ {id:'chicken',name:'Chicken Spinach',ing:`${SAN}, ${FIOR}, kremet kylling, parmesan, ${EVO}`,price:245,cats:['meat'],photo:'piopio'},
+ {id:'royal',name:'Royal',ing:`Prosciutto di Parma, ${FIOR}, ruccola, parmesan, ${EVO}`,price:250,cats:['meat'],photo:'pepperoni'}];
+PIZZAS.forEach(p=>{p.allergens='Hvete, melk'});
+const SIZES=[{id:'M',label:'Hel pizza',cm:0,add:0}];
+// "Tillegg" on the menu: gluten-free base or vegan cheese, 59 kr each
+const TOPPINGS=[{id:'glutenfree',name:'Glutenfri bunn'},{id:'vegancheese',name:'Vegansk ost'}];
+const TOP_PRICE=59,MAX_TOPS=2;
 const SIDES=[{id:'garlicbread',name:'Hvitløksbrød',em:'🥖',price:59},{id:'cheesebread',name:'Hvitløksbrød med ost',em:'🧀',price:69},
  {id:'fries',name:'Pommes frites',em:'🍟',price:49},{id:'sweetfries',name:'Søtpotetfries',em:'🍠',price:59},
  {id:'wings',name:'Kyllingvinger ×6',em:'🍗',price:89},{id:'mozzsticks',name:'Mozzarellasticks ×5',em:'🫕',price:79},
