@@ -36,5 +36,8 @@ write('src/piopio/markup.js',gen('app/, admin/ and staff/index.html')+
 const urls=path.join(__dirname,'base44-images.json');
 write('src/piopio/images.js',gen('tools/base44-images.json')+'export const images='+(fs.existsSync(urls)?fs.readFileSync(urls,'utf8').trim():'{}')+';\n');
 
+// brand photos for the landing page, served from the site root (/img/…)
+for(const f of fs.readdirSync(path.join(root,'app','img')))write('public/img/'+f,fs.readFileSync(path.join(root,'app','img',f)));
+
 const list=[];(function walk(d){for(const e of fs.readdirSync(path.join(out,d),{withFileTypes:true})){const r=path.join(d,e.name);e.isDirectory()?walk(r):list.push(r)}})('');
 for(const f of list.sort())console.log(String(fs.statSync(path.join(out,f)).size).padStart(7),f);

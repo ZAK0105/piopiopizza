@@ -11,7 +11,7 @@ const {Invalid}=L;
 
 const ROOT=path.join(__dirname,'..');
 const MIME={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8',
- '.png':'image/png','.svg':'image/svg+xml','.json':'application/json','.ico':'image/x-icon','.webmanifest':'application/manifest+json'};
+ '.png':'image/png','.webp':'image/webp','.svg':'image/svg+xml','.json':'application/json','.ico':'image/x-icon','.webmanifest':'application/manifest+json'};
 
 function createApp({dataDir=process.env.DATA_DIR||path.join(ROOT,'data'),password=process.env.ADMIN_PASSWORD,ordersPerMinute=20}={}){
  const db=require('./db.js').open(dataDir);
