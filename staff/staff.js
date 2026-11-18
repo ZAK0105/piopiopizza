@@ -54,7 +54,7 @@ function header(){
  const m=S.me;
  return`<header class="head"><div class="logo">pio pio<span>.</span></div>
   <div class="who"><b>${esc(m.name)}<span class="role">${m.role==='driver'?'Driver':'Kitchen'}</span></b>
-   <small>${S.admin?'<a href="#" data-act="switch">Switch person</a>':'<a href="#" data-act="logout">End shift</a>'}</small></div></header>`;
+   <small>${window.PP_BACKEND?'<a href="/vaktliste">Vaktliste</a> · ':''}${S.admin?'<a href="#" data-act="switch">Switch person</a>':'<a href="#" data-act="logout">End shift</a>'}</small></div></header>`;
 }
 const lineSub=l=>l.size?[SIZE[l.size]??l.size,...(l.tops||[]).map(t=>'+ '+(window.PIOPIO_MENU?.TOPPINGS.find(x=>x.id===t)?.name||t))].filter(Boolean).join(' · '):'';
 const items=o=>`<ul class="items">${[...o.lines,...o.extras].map(l=>`<li>${l.qty}× ${esc(l.name)}${lineSub(l)?`<small>${esc(lineSub(l))}</small>`:''}</li>`).join('')}</ul>`;

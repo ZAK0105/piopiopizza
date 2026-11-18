@@ -2,7 +2,7 @@
 // Pio Pio Pizzeria — landing page and ordering. Dependency-free; state → render().
 // The order flow: 1) pick pizza and extras on the landing page, 2) contact details and delivery address, 3) payment.
 
-const {PIZZAS:MENU,SIZES,TOPPINGS,TOP_PRICE,MAX_TOPS,SIDES,DIPS,DESSERTS,BRANDS,BOTTLES,DRINKS,EXTRAS}=PIOPIO_MENU;
+const {PIZZAS:MENU,SIZES,TOPPINGS,TOP_PRICE,MAX_TOPS,SIDES,DIPS,DESSERTS,BRANDS,BOTTLES,DRINKS,EXTRAS}=window.PIOPIO_MENU;
 const FILTERS=[['all','Alle'],['veggie','🌱 Vegetar'],['spicy','🌶️ Sterk'],['meat','🥩 Kjøtt']];
 const bottle=(b,z)=>`<span class="bottle${z==='15'?' big':''}" style="--c:${b.c}${b.l?`;--l:${b.l}`:''}"></span>`;
 DRINKS.forEach(d=>{d.icon=bottle(BRANDS.find(b=>b.id===d.brand),d.size)});
@@ -10,7 +10,7 @@ const C=window.PP_CORE; // shared order rules: phone format, distances, the shop
 const SHOP=C.SHOP;
 const TOTAL=1200;
 // Live values: replaced by the server's when the app is served by it (see syncMenu); defaults keep the standalone demo working
-let FEE=PIOPIO_MENU.DELIVERY_FEE,LIVE=false,STORE={...C.DEFAULT_SETTINGS};
+let FEE=window.PIOPIO_MENU.DELIVERY_FEE,LIVE=false,STORE={...C.DEFAULT_SETTINGS};
 const STEPS=[
  {label:'Mottatt',sub:'Kjøkkenet har bestillingen din',color:'#2563EB',tint:'rgba(37,99,235,.10)',fg:'#1D4ED8',at:0},
  {label:'I ovnen',sub:'Steinovn · 90 sekunder på 450 °C',color:'#F59E0B',tint:'rgba(245,158,11,.16)',fg:'#B45309',at:90},
@@ -440,8 +440,8 @@ function mapNode(){
  if(mapEl)return mapEl;
  mapEl=document.createElement('div');mapEl.className='map-canvas';
  if(window.L){
-  lmap=L.map(mapEl,{zoomControl:false,attributionControl:true,scrollWheelZoom:false});
-  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+  lmap=window.L.map(mapEl,{zoomControl:false,attributionControl:true,scrollWheelZoom:false});
+  window.L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',
    {maxZoom:19,className:'soft-tiles',attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}).addTo(lmap);
   lmap.setView([SHOP.lat,SHOP.lng],15);
  }
@@ -454,7 +454,7 @@ function drawMap(pts){
   for(const k of Object.keys(MARK)){
    const p=pts[k];
    if(!p){if(lmarks[k]){lmarks[k].remove();delete lmarks[k]}continue}
-   if(!lmarks[k])lmarks[k]=L.circleMarker([p.lat,p.lng],{radius:MARK[k].r,color:MARK[k].color,weight:3,fillColor:MARK[k].fill,fillOpacity:1}).addTo(lmap);
+   if(!lmarks[k])lmarks[k]=window.L.circleMarker([p.lat,p.lng],{radius:MARK[k].r,color:MARK[k].color,weight:3,fillColor:MARK[k].fill,fillOpacity:1}).addTo(lmap);
    else lmarks[k].setLatLng([p.lat,p.lng]);
   }
   // re-frame when the set of points changes or the driver leaves the view

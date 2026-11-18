@@ -1,0 +1,78 @@
+{
+  "name": "Shift",
+  "type": "object",
+  "properties": {
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "YYYY-MM-DD"
+    },
+    "start_time": {
+      "type": "string",
+      "description": "HH:mm"
+    },
+    "end_time": {
+      "type": "string",
+      "description": "HH:mm"
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "kitchen",
+        "driver",
+        "manager"
+      ],
+      "enumColors": [
+        "yellow",
+        "blue",
+        "purple"
+      ],
+      "default": "kitchen",
+      "description": "Rolle p\u00e5 vakten"
+    },
+    "employee_id": {
+      "type": "string",
+      "description": "Id til personen p\u00e5 vakten. Tom n\u00e5r vakten er ledig."
+    },
+    "employee_name": {
+      "type": "string",
+      "description": "Navn lagret med vakten. Tom n\u00e5r vakten er ledig."
+    },
+    "employee_email": {
+      "type": "string",
+      "description": "Lowercase e-post som kobler vakten til den innloggede ansatte"
+    },
+    "notes": {
+      "type": "string",
+      "description": "Valgfri beskjed til den som tar vakten"
+    }
+  },
+  "required": [
+    "date",
+    "start_time",
+    "end_time",
+    "role"
+  ],
+  "rls": {
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

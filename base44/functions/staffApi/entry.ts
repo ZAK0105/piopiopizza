@@ -2,10 +2,7 @@
 // an admin may act as any staff member. Drivers only ever reach deliveries that are free or their own.
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.54';
 import C from '../../shared/core.ts';
-
-const rows = (x) => (Array.isArray(x) ? x : (x?.items || []));
-const json = (body, status = 200) => Response.json(body, { status });
-const none = (e) => (e?.status === 404 ? null : Promise.reject(e));
+import { json, none, rows } from '../../shared/http.ts';
 
 export default async function(req) {
   try {
